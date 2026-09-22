@@ -2,6 +2,7 @@ import 'dotenv/config';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import { configFor, updateConfig } from './config-store.js';
+import { createFeature, deleteFeature, exportGuild, featureNames, importGuild, listFeature, updateFeature } from './features-store.js';
 
 const app = Fastify({ logger: true });
 await app.register(cors, { origin: process.env.DASHBOARD_ORIGIN?.split(',') ?? true });
@@ -29,6 +30,31 @@ app.get<{ Params: { guildId: string } }>('/api/guilds/:guildId/overview', async 
   modules: (await configFor(request.params.guildId)).modules,
   metrics: { members: 0, messagesToday: 0, ticketsOpen: 0, exchangePending: 0 }
 }));
+
+app.get('/api/catalog', async () => ({ features: featureNames }));
+
+app.get<{ Params: { guildId: string; feature: string } }>('/api/guilds/:guildId/:feature', async (request, reply) => {
+  try { return await listFeature(request.params.guildId, request.params.feature); }
+  catch (error) { return reply.code(400).send({ error: error instanceof Error ? error.message : 'Invalid feature.' }); }
+});
+
+app.post<{ Params: { guildId: string; feature: string }; Body: Record<string, unknown> }>('/api/guilds/:guildId/:feature', async (request, reply) => {
+  try { return reply.code(201).send(await createFeature(request.params.guildId, request.params.feature, request.body ?? {})); }
+  catch (error) { return reply.code(400).send({ error: error instanceof Error ? error.message : 'Invalid feature.' }); }
+});
+
+app.patch<{ Params: { guildId: string; feature: string; id: string }; Body: Record<string, unknown> }>('/api/guilds/:guildId/:feature/:id', async (request, reply) => {
+  try { const result = await updateFeature(request.params.guildId, request.params.feature, request.params.id, request.body ?? {}); return result ? result : reply.code(404).send({ error: 'Record not found.' }); }
+  catch (error) { return reply.code(400).send({ error: error instanceof Error ? error.message : 'Invalid feature.' }); }
+});
+
+app.delete<{ Params: { guildId: string; feature: string; id: string } }>('/api/guilds/:guildId/:feature/:id', async (request, reply) => {
+  try { return (await deleteFeature(request.params.guildId, request.params.feature, request.params.id)) ? { deleted: true } : reply.code(404).send({ error: 'Record not found.' }); }
+  catch (error) { return reply.code(400).send({ error: error instanceof Error ? error.message : 'Invalid feature.' }); }
+});
+
+app.get<{ Params: { guildId: string } }>('/api/guilds/:guildId/export', async (request) => exportGuild(request.params.guildId));
+app.put<{ Params: { guildId: string }; Body: Record<string, unknown> }>('/api/guilds/:guildId/import', async (request) => importGuild(request.params.guildId, request.body));
 
 const start = async () => {
   const port = Number(process.env.PORT || process.env.API_PORT || 3001);

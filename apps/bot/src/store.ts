@@ -6,12 +6,14 @@ export interface Warning { id: number; userId: string; moderatorId: string; reas
 export interface Ticket { id: number; guildId: string; channelId: string; userId: string; status: 'open' | 'closed'; createdAt: string; closedAt?: string; }
 export interface ExchangeRequest { id: string; guildId: string; userId: string; title: string; description: string; link?: string; status: 'pending' | 'approved' | 'rejected'; reason?: string; createdAt: string; reviewedBy?: string; }
 export interface Giveaway { id: number; guildId: string; channelId: string; messageId?: string; prize: string; winners: number; endsAt: string; entries: string[]; ended: boolean; }
-export interface MemberStats { xp: number; level: number; messages: number; invites: number; balance: number; lastDaily?: string; }
+export interface Poll { id: number; question: string; options: string[]; votes: Record<string, number>; closed: boolean; createdAt: string; }
+export interface MemberStats { xp: number; level: number; messages: number; invites: number; balance: number; reputation?: number; lastDaily?: string; }
 export interface GuildData {
   warnings: Warning[];
   tickets: Ticket[];
   exchanges: ExchangeRequest[];
   giveaways: Giveaway[];
+  polls: Poll[];
   stats: Record<string, MemberStats>;
   config: { language: 'en' | 'fa'; logChannelId?: string; welcomeChannelId?: string; welcomeMessage: string; ticketCategoryId?: string; exchangeChannelId?: string; staffRoleId?: string; modules?: Record<string, boolean> };
   audit: Array<{ action: string; actorId?: string; targetId?: string; metadata?: unknown; createdAt: string }>;
@@ -23,7 +25,7 @@ let cache: Record<string, GuildData> | null = null;
 let writeQueue: Promise<void> = Promise.resolve();
 
 function freshGuild(): GuildData {
-  return { warnings: [], tickets: [], exchanges: [], giveaways: [], stats: {}, config: { language: 'en', welcomeMessage: 'Welcome {{user}} to {{guild}}!', modules: {} }, audit: [] };
+  return { warnings: [], tickets: [], exchanges: [], giveaways: [], polls: [], stats: {}, config: { language: 'en', welcomeMessage: 'Welcome {{user}} to {{guild}}!', modules: {} }, audit: [] };
 }
 
 async function load(): Promise<Record<string, GuildData>> {

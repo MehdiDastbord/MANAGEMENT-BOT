@@ -1,0 +1,20 @@
+{
+  "smoke-test": {
+    "automations": [
+      {
+        "name": "Welcome automation",
+        "enabled": true,
+        "id": "f0074291-61b1-429c-afb2-cef83bf891bc",
+        "createdAt": "2026-09-22T12:40:35.440Z",
+        "updatedAt": "2026-09-22T12:40:35.440Z"
+      }
+    ],
+    "announcements": [],
+    "scheduledMessages": [],
+    "polls": [],
+    "forms": [],
+    "reputation": [],
+    "achievements": [],
+    "appeals": []
+  }
+}
