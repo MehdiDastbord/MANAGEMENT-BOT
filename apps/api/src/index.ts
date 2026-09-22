@@ -5,9 +5,18 @@ import { configFor, updateConfig } from './config-store.js';
 import { createFeature, deleteFeature, exportGuild, featureNames, importGuild, listFeature, updateFeature } from './features-store.js';
 
 const app = Fastify({ logger: true });
-await app.register(cors, { origin: process.env.DASHBOARD_ORIGIN?.split(',') ?? true });
+const allowedOrigins = (process.env.DASHBOARD_ORIGIN ?? '')
+  .split(',')
+  .map((origin) => origin.trim().replace(/\/$/, ''))
+  .filter(Boolean);
+await app.register(cors, {
+  origin: allowedOrigins.length > 0 ? allowedOrigins : true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+});
 
 app.addHook('onRequest', async (request, reply) => {
+  if (request.method === 'OPTIONS') return;
   const protectedPath = request.url.startsWith('/api/guilds/');
   const expected = process.env.API_KEY;
   if (protectedPath && expected && request.headers.authorization !== `Bearer ${expected}`) return reply.code(401).send({ error: 'Unauthorized' });
