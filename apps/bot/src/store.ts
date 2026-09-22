@@ -106,6 +106,9 @@ export interface GuildData {
     leaveMessage?: string;
     automod?: AutoModConfig;
     rolePermissions?: Record<string, string[]>;
+    levelChannelId?: string;
+    inviteChannelId?: string;
+    logChannels?: Record<string, string>;
   };
   audit: Array<{
     action: string;
@@ -150,6 +153,7 @@ function freshGuild(): GuildData {
       modules: {},
       automod: { enabled: true, inviteLinks: true, mentionSpam: true, duplicateMessages: true, capsSpam: true, badWords: [], ignoredChannels: [], ignoredRoles: [], ignoredUsers: [], action: 'timeout', timeoutSeconds: 60 },
       rolePermissions: {},
+        logChannels: {},
     },
     audit: [],
   };
@@ -212,6 +216,9 @@ function normalizeGuildData(value: GuildData & { config?: GuildData["config"] & 
     leaveMessage: raw.leaveMessage,
     automod: raw.automod ?? freshGuild().config.automod,
     rolePermissions: raw.rolePermissions ?? {},
+    levelChannelId: raw.levelChannelId,
+    inviteChannelId: raw.inviteChannelId,
+    logChannels: raw.logChannels ?? {},
     exchangeReviewChannelId: raw.exchangeReviewChannelId,
     exchangePublishChannelId: raw.exchangePublishChannelId,
     exchangeReviewRoleId: raw.exchangeReviewRoleId,

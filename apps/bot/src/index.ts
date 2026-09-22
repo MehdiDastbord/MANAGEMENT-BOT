@@ -40,6 +40,22 @@ const client = new Client({
 });
 const inviteSnapshots = new Map<string, Map<string, number>>();
 
+const logCategoryFor = (action: string): string => action.split('.')[0];
+
+async function logEvent(guild: Awaited<ReturnType<typeof guildData>>, guildId: string, action: string, actorId?: string, targetId?: string, metadata?: unknown): Promise<void> {
+  addAudit(guild, action, actorId, targetId, metadata);
+  const channelId = guild.config.logChannels?.[logCategoryFor(action)] ?? guild.config.logChannels?.[action] ?? guild.config.logChannelId;
+  if (!channelId) return;
+  const channel = client.channels.cache.get(channelId);
+  if (!channel?.isTextBased() || !('send' in channel)) return;
+  const details = metadata && typeof metadata === 'object' ? Object.entries(metadata as Record<string, unknown>).map(([key, value]) => `${key}: ${String(value)}`).join('\n').slice(0, 900) : undefined;
+  await channel.send({ embeds: [new EmbedBuilder().setTitle(action).setColor(0x5865f2).addFields(
+    { name: 'Actor', value: actorId ? `<@${actorId}>` : 'Discord event' },
+    { name: 'Target', value: targetId ? `<@${targetId}>` : 'None' },
+    ...(details ? [{ name: 'Details', value: details }] : [])
+  ).setTimestamp()] }).catch(() => undefined);
+}
+
 client.once("ready", () => {
   console.log(`Logged in as ${client.user?.tag}`);
   client.user?.setPresence({
@@ -127,7 +143,7 @@ client.on("interactionCreate", async (interaction) => {
         content: `Language: ${guild.config.language}\nLog channel: ${guild.config.logChannelId ?? "not configured"}\nWelcome channel: ${guild.config.welcomeChannelId ?? "not configured"}\nTicket category: ${guild.config.ticketCategoryId ?? "not configured"}`,
         ephemeral: true,
       });
-    addAudit(guild, `command.${interaction.commandName}`, interaction.user.id);
+    await logEvent(guild, interaction.guild.id, `command.${interaction.commandName}`, interaction.user.id);
     await save();
   } catch (error) {
     console.error("Interaction failed:", error);
@@ -195,7 +211,7 @@ client.on("guildMemberAdd", (member) => {
           guild: member.guild.name,
         }),
       );
-    addAudit(guild, "member.join", undefined, member.id);
+    await logEvent(guild, member.guild.id, "member.join", undefined, member.id);
     await save();
   })();
 });
@@ -208,15 +224,66 @@ client.on("guildMemberRemove", (member) => {
       : undefined;
     if (channel?.isTextBased() && guild.config.modules?.welcome !== false)
       await channel.send(render(guild.config.leaveMessage ?? "Goodbye {{user}}.", { user: member.user.username, guild: member.guild.name }));
-    addAudit(guild, "member.leave", undefined, member.id);
+    await logEvent(guild, member.guild.id, "member.leave", undefined, member.id);
     await save();
   })();
+});
+
+client.on("guildBanAdd", (ban) => {
+  void (async () => {
+    const guild = await guildData(ban.guild.id);
+    await logEvent(guild, ban.guild.id, "member.ban", undefined, ban.user.id, { reason: ban.reason ?? "Unknown" });
+    await save();
+  })();
+});
+
+client.on("guildBanRemove", (ban) => {
+  void (async () => {
+    const guild = await guildData(ban.guild.id);
+    await logEvent(guild, ban.guild.id, "member.unban", undefined, ban.user.id);
+    await save();
+  })();
+});
+
+client.on("roleCreate", (role) => {
+  void (async () => { const guild = await guildData(role.guild.id); await logEvent(guild, role.guild.id, "role.create", undefined, role.id, { name: role.name }); await save(); })();
+});
+client.on("roleDelete", (role) => {
+  void (async () => { const guild = await guildData(role.guild.id); await logEvent(guild, role.guild.id, "role.delete", undefined, role.id, { name: role.name }); await save(); })();
+});
+client.on("roleUpdate", (oldRole, newRole) => {
+  void (async () => { const guild = await guildData(newRole.guild.id); await logEvent(guild, newRole.guild.id, "role.update", undefined, newRole.id, { before: oldRole.name, after: newRole.name, color: newRole.hexColor }); await save(); })();
+});
+client.on("channelCreate", (channel) => {
+  if (!channel.guild) return;
+  void (async () => { const guild = await guildData(channel.guild!.id); await logEvent(guild, channel.guild!.id, "channel.create", undefined, channel.id, { name: channel.name }); await save(); })();
+});
+client.on("channelDelete", (channel) => {
+  if (!("guild" in channel)) return;
+  void (async () => { const guild = await guildData(channel.guild.id); await logEvent(guild, channel.guild.id, "channel.delete", undefined, channel.id, { name: channel.name }); await save(); })();
+});
+client.on("channelUpdate", (oldChannel, newChannel) => {
+  if (!("guild" in newChannel) || !("name" in oldChannel)) return;
+  void (async () => { const guild = await guildData(newChannel.guild.id); await logEvent(guild, newChannel.guild.id, "channel.update", undefined, newChannel.id, { before: oldChannel.name, after: newChannel.name }); await save(); })();
+});
+client.on("messageUpdate", (oldMessage, newMessage) => {
+  if (!newMessage.guild || newMessage.author?.bot) return;
+  void (async () => { const guild = await guildData(newMessage.guild!.id); await logEvent(guild, newMessage.guild!.id, "message.edit", newMessage.author?.id, newMessage.id, { channelId: newMessage.channelId }); await save(); })();
+});
+client.on("messageDelete", (message) => {
+  if (!message.guild || message.author?.bot) return;
+  void (async () => { const guild = await guildData(message.guild!.id); await logEvent(guild, message.guild!.id, "message.delete", message.author?.id, message.id, { channelId: message.channelId }); await save(); })();
+});
+client.on("voiceStateUpdate", (oldState, newState) => {
+  const guildId = newState.guild.id;
+  void (async () => { const guild = await guildData(guildId); await logEvent(guild, guildId, "voice.update", newState.member?.id, newState.member?.id, { before: oldState.channelId ?? "none", after: newState.channelId ?? "none" }); await save(); })();
 });
 
 client.on("messageCreate", (message) => {
   if (!message.guild || message.author.bot) return;
   void (async () => {
-    const guild = await guildData(message.guild!.id);
+    const messageGuild = message.guild!;
+    const guild = await guildData(messageGuild.id);
     const automod = guild.config.automod;
     const automodEnabled = guild.config.modules?.automod !== false && automod?.enabled !== false;
     const ignored = automod?.ignoredUsers.includes(message.author.id) || automod?.ignoredChannels.includes(message.channelId) || (message.member?.roles.cache.some(role => automod?.ignoredRoles.includes(role.id)) ?? false);
@@ -234,7 +301,7 @@ client.on("messageCreate", (message) => {
     ) {
       await message.delete().catch(() => undefined);
       if (automod?.action !== 'delete') await message.member.timeout((automod?.timeoutSeconds ?? 60) * 1000, "AutoMod policy violation").catch(() => undefined);
-      addAudit(guild, "automod.action", client.user?.id, message.author.id, {
+      await logEvent(guild, messageGuild.id, "automod.action", client.user?.id, message.author.id, {
         inviteLink, excessiveMentions, capsSpam, badWord, action: automod?.action ?? 'timeout'
       });
       await save();
@@ -246,7 +313,8 @@ client.on("messageCreate", (message) => {
     const nextLevel = Math.floor(Math.sqrt(stats.xp / 100));
     if (nextLevel > stats.level) {
       stats.level = nextLevel;
-      await message.channel.send(
+      const levelChannel = guild.config.levelChannelId ? messageGuild.channels.cache.get(guild.config.levelChannelId) : message.channel;
+      if (levelChannel?.isTextBased() && 'send' in levelChannel) await levelChannel.send(
         `Congratulations ${message.author}, you reached level ${stats.level}!`,
       );
     }
@@ -290,7 +358,7 @@ async function ban(interaction: import("discord.js").ChatInputCommandInteraction
   const user = interaction.options.getUser("user", true);
   const reason = interaction.options.getString("reason") ?? "No reason provided";
   await interaction.guild!.members.ban(user, { reason });
-  addAudit(guild, "moderation.ban", interaction.user.id, user.id, { reason });
+  await logEvent(guild, interaction.guild!.id, "moderation.ban", interaction.user.id, user.id, { reason });
   await interaction.reply(`${user.tag} was banned.`);
 }
 async function unban(interaction: import("discord.js").ChatInputCommandInteraction, guild: Awaited<ReturnType<typeof guildData>>) {
@@ -298,7 +366,7 @@ async function unban(interaction: import("discord.js").ChatInputCommandInteracti
   const userId = interaction.options.getString("user_id", true);
   const reason = interaction.options.getString("reason") ?? "No reason provided";
   await interaction.guild!.members.unban(userId, reason);
-  addAudit(guild, "moderation.unban", interaction.user.id, userId, { reason });
+  await logEvent(guild, interaction.guild!.id, "moderation.unban", interaction.user.id, userId, { reason });
   await interaction.reply(`User ${userId} was unbanned.`);
 }
 async function kick(interaction: import("discord.js").ChatInputCommandInteraction, guild: Awaited<ReturnType<typeof guildData>>) {
@@ -308,7 +376,7 @@ async function kick(interaction: import("discord.js").ChatInputCommandInteractio
   if (!member.kickable) return interaction.reply({ content: "I cannot kick that member because of role hierarchy.", ephemeral: true });
   const reason = interaction.options.getString("reason") ?? "No reason provided";
   await member.kick(reason);
-  addAudit(guild, "moderation.kick", interaction.user.id, user.id, { reason });
+  await logEvent(guild, interaction.guild!.id, "moderation.kick", interaction.user.id, user.id, { reason });
   await interaction.reply(`${user.tag} was kicked.`);
 }
 async function untimeout(interaction: import("discord.js").ChatInputCommandInteraction, guild: Awaited<ReturnType<typeof guildData>>) {
@@ -317,7 +385,7 @@ async function untimeout(interaction: import("discord.js").ChatInputCommandInter
   const member = await interaction.guild!.members.fetch(user.id);
   if (!member.moderatable) return interaction.reply({ content: "I cannot modify that member because of role hierarchy.", ephemeral: true });
   await member.timeout(null, "Timeout removed");
-  addAudit(guild, "moderation.untimeout", interaction.user.id, user.id);
+  await logEvent(guild, interaction.guild!.id, "moderation.untimeout", interaction.user.id, user.id);
   await interaction.reply(`Timeout removed for ${user.tag}.`);
 }
 async function unwarn(interaction: import("discord.js").ChatInputCommandInteraction, guild: Awaited<ReturnType<typeof guildData>>) {
@@ -326,14 +394,14 @@ async function unwarn(interaction: import("discord.js").ChatInputCommandInteract
   const index = guild.warnings.findIndex(warning => warning.id === id);
   if (index < 0) return interaction.reply({ content: "Warning not found.", ephemeral: true });
   const [warning] = guild.warnings.splice(index, 1);
-  addAudit(guild, "moderation.unwarn", interaction.user.id, warning.userId, { warningId: id });
+  await logEvent(guild, interaction.guild!.id, "moderation.unwarn", interaction.user.id, warning.userId, { warningId: id });
   await interaction.reply(`Warning #${id} removed.`);
 }
 async function lockChannel(interaction: import("discord.js").ChatInputCommandInteraction, guild: Awaited<ReturnType<typeof guildData>>, locked: boolean) {
   if (!canUse(interaction, "channels.manage", guild)) return interaction.reply({ content: "You do not have permission to manage channels.", ephemeral: true });
   if (!interaction.channel || !interaction.guild || !("permissionOverwrites" in interaction.channel)) return interaction.reply({ content: "This command requires a guild channel.", ephemeral: true });
   await interaction.channel.permissionOverwrites.edit(interaction.guild.roles.everyone, { SendMessages: locked ? false : null });
-  addAudit(guild, locked ? "channel.lock" : "channel.unlock", interaction.user.id, interaction.channelId);
+  await logEvent(guild, interaction.guild!.id, locked ? "channel.lock" : "channel.unlock", interaction.user.id, interaction.channelId);
   await interaction.reply({ content: locked ? "Channel locked." : "Channel unlocked.", ephemeral: true });
 }
 async function slowmode(interaction: import("discord.js").ChatInputCommandInteraction, guild: Awaited<ReturnType<typeof guildData>>) {
@@ -341,7 +409,7 @@ async function slowmode(interaction: import("discord.js").ChatInputCommandIntera
   if (!interaction.channel || !interaction.channel.isTextBased() || !("setRateLimitPerUser" in interaction.channel)) return interaction.reply({ content: "This command requires a text channel.", ephemeral: true });
   const seconds = interaction.options.getInteger("seconds", true);
   await interaction.channel.setRateLimitPerUser(seconds);
-  addAudit(guild, "channel.slowmode", interaction.user.id, interaction.channelId, { seconds });
+  await logEvent(guild, interaction.guild!.id, "channel.slowmode", interaction.user.id, interaction.channelId, { seconds });
   await interaction.reply({ content: `Slowmode set to ${seconds} seconds.`, ephemeral: true });
 }
 async function showWarnings(
@@ -396,7 +464,7 @@ async function timeout(
     minutes * 60_000,
     interaction.options.getString("reason") ?? "No reason provided",
   );
-  addAudit(guild, "moderation.timeout", interaction.user.id, user.id, {
+  await logEvent(guild, interaction.guild!.id, "moderation.timeout", interaction.user.id, user.id, {
     minutes,
   });
   await interaction.reply(`${user} timed out for ${minutes} minutes.`);
@@ -472,6 +540,7 @@ async function createTicket(
     components: [row],
   allowedMentions: guild.config.ticketMentionRoleId ? { roles: [guild.config.ticketMentionRoleId], users: [interaction.user.id] } : { users: [interaction.user.id] },
   });
+  await logEvent(guild, interaction.guild!.id, "ticket.created", interaction.user.id, String(id), { channelId: channel.id });
   await interaction.reply({
     content: `Ticket created: ${channel}`,
     ephemeral: true,
@@ -506,6 +575,7 @@ async function createTranscript(
       await logChannel.send({ content: `Transcript for ticket #${ticket.id}`, files: [{ attachment: Buffer.from(content || "No messages", "utf8"), name: `ticket-${ticket.id}-transcript.txt` }] });
     }
   }
+  await logEvent(guild, interaction.guild!.id, "ticket.transcript", interaction.user.id, String(ticket.id), { channelId: ticket.channelId });
 }
 async function createExchange(
   interaction: import("discord.js").ChatInputCommandInteraction,
@@ -558,6 +628,7 @@ async function createExchange(
       allowedMentions: { roles: guild.config.exchangeReviewRoleId ? [guild.config.exchangeReviewRoleId] : [], users: [request.userId] },
     });
   }
+  await logEvent(guild, interaction.guild!.id, "exchange.submitted", interaction.user.id, requestId, { bannerUrl: request.bannerUrl });
   await interaction.reply({
     content: `Exchange request ${requestId} submitted.`,
     ephemeral: true,
@@ -626,7 +697,7 @@ async function rep(
   const amount = interaction.options.getInteger("amount", true);
   const stats = statsFor(guild, user.id);
   stats.reputation = (stats.reputation ?? 0) + amount;
-  addAudit(guild, "reputation.give", interaction.user.id, user.id, {
+  await logEvent(guild, interaction.guild!.id, "reputation.give", interaction.user.id, user.id, {
     amount,
     reason: interaction.options.getString("reason"),
   });
@@ -791,6 +862,7 @@ async function createGiveaway(
     components: [row],
   });
   giveaway.messageId = message.id;
+  await logEvent(guild, interaction.guild!.id, "giveaway.created", interaction.user.id, String(giveaway.id), { prize: giveaway.prize, messageId: message.id });
   await interaction.reply({
     content: `Giveaway #${giveaway.id} created.`,
     ephemeral: true,
@@ -804,7 +876,7 @@ async function createDrop(
   const drop = { id: guild.drops.length + 1, guildId: interaction.guild!.id, channelId: interaction.channelId, prize: interaction.options.getString("prize", true), createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + interaction.options.getInteger("minutes", true) * 60_000).toISOString() };
   guild.drops.push(drop);
   const message = await interaction.channel.send({ embeds: [new EmbedBuilder().setTitle(`Drop #${drop.id}`).setDescription(`Prize: **${drop.prize}**\nExpires: <t:${Math.floor(new Date(drop.expiresAt).getTime() / 1000)}:R>`).setColor(0x13a673)], components: [new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId(`drop:claim:${drop.id}`).setLabel("Claim drop").setStyle(ButtonStyle.Success))] });
-  addAudit(guild, "drop.created", interaction.user.id, String(drop.id), { messageId: message.id, prize: drop.prize });
+  await logEvent(guild, interaction.guild!.id, "drop.created", interaction.user.id, String(drop.id), { messageId: message.id, prize: drop.prize });
   await interaction.reply({ content: `Drop #${drop.id} created.`, ephemeral: true });
 }
 async function setup(interaction: import("discord.js").ChatInputCommandInteraction, guild: Awaited<ReturnType<typeof guildData>>) {
@@ -946,6 +1018,7 @@ async function handleButton(
     }
     request.status = "approved";
     request.reviewedBy = interaction.user.id;
+    await logEvent(guild, interaction.guild.id, "exchange.approved", interaction.user.id, request.id);
     const requester = await client.users.fetch(request.userId).catch(() => null);
     await requester?.send(`Your exchange ${request.id} was approved.`).catch(() => undefined);
     const publishChannelId = guild.config.exchangePublishChannelId ?? guild.config.exchangeChannelId;
@@ -971,6 +1044,7 @@ async function handleButton(
         ephemeral: true,
       });
     giveaway.entries.push(interaction.user.id);
+    await logEvent(guild, interaction.guild.id, "giveaway.entered", interaction.user.id, String(giveaway.id));
     await interaction.reply({
       content: "You entered the giveaway!",
       ephemeral: true,
@@ -979,7 +1053,7 @@ async function handleButton(
     const drop = guild.drops.find(item => item.id === Number(rawId));
     if (!drop || drop.claimedBy || new Date(drop.expiresAt) <= new Date()) return interaction.reply({ content: "This drop is no longer available.", ephemeral: true });
     drop.claimedBy = interaction.user.id;
-    addAudit(guild, "drop.claimed", interaction.user.id, String(drop.id));
+    await logEvent(guild, interaction.guild.id, "drop.claimed", interaction.user.id, String(drop.id));
     await interaction.update({ content: `Drop claimed by <@${interaction.user.id}>.`, embeds: [], components: [] });
   }
   await save();
@@ -1003,7 +1077,8 @@ async function handleModal(
     !interaction.customId.startsWith("exchange-reject:")
   )
     return;
-  const request = (await guildData(interaction.guild.id)).exchanges.find(
+  const guild = await guildData(interaction.guild.id);
+  const request = guild.exchanges.find(
     (item) => item.id === interaction.customId.split(":")[1],
   );
   if (!request)
@@ -1014,6 +1089,7 @@ async function handleModal(
   request.status = "rejected";
   request.reason = interaction.fields.getTextInputValue("reason");
   request.reviewedBy = interaction.user.id;
+  await logEvent(guild, interaction.guild.id, "exchange.rejected", interaction.user.id, request.id, { reason: request.reason });
   const requester = await client.users.fetch(request.userId).catch(() => null);
   await requester?.send(`Your exchange ${request.id} was declined.${request.reason ? ` Reason: ${request.reason}` : ""}`).catch(() => undefined);
   await interaction.reply({

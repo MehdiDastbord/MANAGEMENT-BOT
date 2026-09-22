@@ -6,7 +6,8 @@ export interface ApiGuildConfig {
   guildId: string;
   language: 'en' | 'fa';
   modules: Record<string, boolean>;
-  channels: { logs?: string; welcome?: string; tickets?: string; exchange?: string };
+  channels: { logs?: string; welcome?: string; tickets?: string; exchange?: string; level?: string; invites?: string };
+  logChannels?: Record<string, string>;
   messages: { welcome: string };
   leave?: { channelId?: string; message?: string };
   automod?: { enabled: boolean; inviteLinks: boolean; mentionSpam: boolean; capsSpam: boolean; badWords: string[]; action: 'delete' | 'timeout' | 'warn'; timeoutSeconds: number };
@@ -41,6 +42,7 @@ export async function updateConfig(guildId: string, patch: Partial<ApiGuildConfi
   if (patch.language) config.language = patch.language;
   if (patch.modules) config.modules = { ...config.modules, ...patch.modules };
   if (patch.channels) config.channels = { ...config.channels, ...patch.channels };
+  if (patch.logChannels) config.logChannels = { ...config.logChannels, ...patch.logChannels };
   if (patch.messages) config.messages = { ...config.messages, ...patch.messages };
   const incoming = patch as Partial<ApiGuildConfig>;
   if (incoming.leave) config.leave = { ...config.leave, ...incoming.leave };
@@ -49,7 +51,7 @@ export async function updateConfig(guildId: string, patch: Partial<ApiGuildConfi
   if (incoming.ticketSettings) config.ticketSettings = { ...config.ticketSettings, ...incoming.ticketSettings };
   if (incoming.exchangeSettings) config.exchangeSettings = { ...config.exchangeSettings, ...incoming.exchangeSettings };
   const shared = config as ApiGuildConfig & { config?: Record<string, unknown> };
-  shared.config = { ...shared.config, language: config.language, welcomeMessage: config.messages.welcome, logChannelId: config.channels.logs, welcomeChannelId: config.channels.welcome, ticketCategoryId: config.channels.tickets, exchangeChannelId: config.channels.exchange, modules: config.modules, leaveChannelId: config.leave?.channelId, leaveMessage: config.leave?.message, automod: config.automod, rolePermissions: config.rolePermissions, ticketNameTemplate: config.ticketSettings?.nameTemplate, ticketStaffRoleId: config.ticketSettings?.staffRoleId, ticketMentionRoleId: config.ticketSettings?.mentionRoleId, ticketTranscriptChannelId: config.ticketSettings?.transcriptChannelId, ticketOwnerCanClose: config.ticketSettings?.ownerCanClose, exchangeReviewChannelId: config.exchangeSettings?.reviewChannelId, exchangePublishChannelId: config.exchangeSettings?.publishChannelId, exchangeReviewRoleId: config.exchangeSettings?.reviewRoleId };
+  shared.config = { ...shared.config, language: config.language, welcomeMessage: config.messages.welcome, logChannelId: config.channels.logs, welcomeChannelId: config.channels.welcome, ticketCategoryId: config.channels.tickets, exchangeChannelId: config.channels.exchange, modules: config.modules, leaveChannelId: config.leave?.channelId, leaveMessage: config.leave?.message, automod: config.automod, rolePermissions: config.rolePermissions, logChannels: config.logChannels, levelChannelId: config.channels.level, inviteChannelId: config.channels.invites, ticketNameTemplate: config.ticketSettings?.nameTemplate, ticketStaffRoleId: config.ticketSettings?.staffRoleId, ticketMentionRoleId: config.ticketSettings?.mentionRoleId, ticketTranscriptChannelId: config.ticketSettings?.transcriptChannelId, ticketOwnerCanClose: config.ticketSettings?.ownerCanClose, exchangeReviewChannelId: config.exchangeSettings?.reviewChannelId, exchangePublishChannelId: config.exchangeSettings?.publishChannelId, exchangeReviewRoleId: config.exchangeSettings?.reviewRoleId };
   config.updatedAt = new Date().toISOString();
   await mkdir(dirname(path), { recursive: true });
   await writeFile(path, JSON.stringify(await all(), null, 2));
