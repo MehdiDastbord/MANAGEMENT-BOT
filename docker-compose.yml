@@ -29,6 +29,8 @@ services:
     depends_on:
       - postgres
       - redis
+    volumes:
+      - shared_data:/app/data
 
   dashboard:
     build:
@@ -51,6 +53,9 @@ services:
       - postgres
       - redis
       - api
+    volumes:
+      - shared_data:/app/data
 
 volumes:
   postgres_data:
+  shared_data:

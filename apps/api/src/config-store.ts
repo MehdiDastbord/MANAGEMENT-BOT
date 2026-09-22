@@ -10,6 +10,9 @@ export interface ApiGuildConfig {
   messages: { welcome: string };
   leave?: { channelId?: string; message?: string };
   automod?: { enabled: boolean; inviteLinks: boolean; mentionSpam: boolean; capsSpam: boolean; badWords: string[]; action: 'delete' | 'timeout' | 'warn'; timeoutSeconds: number };
+  rolePermissions?: Record<string, string[]>;
+  ticketSettings?: { nameTemplate?: string; staffRoleId?: string; mentionRoleId?: string; transcriptChannelId?: string; ownerCanClose?: boolean };
+  exchangeSettings?: { reviewChannelId?: string; publishChannelId?: string; reviewRoleId?: string };
   updatedAt: string;
 }
 
@@ -42,8 +45,11 @@ export async function updateConfig(guildId: string, patch: Partial<ApiGuildConfi
   const incoming = patch as Partial<ApiGuildConfig>;
   if (incoming.leave) config.leave = { ...config.leave, ...incoming.leave };
   if (incoming.automod) config.automod = { ...config.automod, ...incoming.automod };
-  const shared = config as ApiGuildConfig & { config?: { language: 'en' | 'fa'; welcomeMessage: string; logChannelId?: string; welcomeChannelId?: string; ticketCategoryId?: string; exchangeChannelId?: string; modules?: Record<string, boolean> } };
-  shared.config = { ...shared.config, language: config.language, welcomeMessage: config.messages.welcome, logChannelId: config.channels.logs, welcomeChannelId: config.channels.welcome, ticketCategoryId: config.channels.tickets, exchangeChannelId: config.channels.exchange, modules: config.modules };
+  if (incoming.rolePermissions) config.rolePermissions = { ...config.rolePermissions, ...incoming.rolePermissions };
+  if (incoming.ticketSettings) config.ticketSettings = { ...config.ticketSettings, ...incoming.ticketSettings };
+  if (incoming.exchangeSettings) config.exchangeSettings = { ...config.exchangeSettings, ...incoming.exchangeSettings };
+  const shared = config as ApiGuildConfig & { config?: Record<string, unknown> };
+  shared.config = { ...shared.config, language: config.language, welcomeMessage: config.messages.welcome, logChannelId: config.channels.logs, welcomeChannelId: config.channels.welcome, ticketCategoryId: config.channels.tickets, exchangeChannelId: config.channels.exchange, modules: config.modules, leaveChannelId: config.leave?.channelId, leaveMessage: config.leave?.message, automod: config.automod, rolePermissions: config.rolePermissions, ticketNameTemplate: config.ticketSettings?.nameTemplate, ticketStaffRoleId: config.ticketSettings?.staffRoleId, ticketMentionRoleId: config.ticketSettings?.mentionRoleId, ticketTranscriptChannelId: config.ticketSettings?.transcriptChannelId, ticketOwnerCanClose: config.ticketSettings?.ownerCanClose, exchangeReviewChannelId: config.exchangeSettings?.reviewChannelId, exchangePublishChannelId: config.exchangeSettings?.publishChannelId, exchangeReviewRoleId: config.exchangeSettings?.reviewRoleId };
   config.updatedAt = new Date().toISOString();
   await mkdir(dirname(path), { recursive: true });
   await writeFile(path, JSON.stringify(await all(), null, 2));

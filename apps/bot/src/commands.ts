@@ -91,15 +91,19 @@ export const commands = [
     .setName("exchange")
     .setDescription("Submit an exchange request")
     .addStringOption((o) =>
-      o.setName("title").setDescription("Title").setRequired(true),
+      o.setName("title").setDescription("Title").setMaxLength(200).setRequired(true),
     )
     .addStringOption((o) =>
-      o.setName("description").setDescription("Description").setRequired(true),
+      o.setName("description").setDescription("Full banner description").setMaxLength(4000).setRequired(true),
     )
-    .addStringOption((o) => o.setName("link").setDescription("Optional link")),
+    .addStringOption((o) => o.setName("link").setDescription("Optional link").setMaxLength(500))
+    .addAttachmentOption((o) => o.setName("banner").setDescription("Upload your full banner image").setRequired(true)),
   new SlashCommandBuilder()
     .setName("rank")
     .setDescription("View your rank")
+    .addUserOption((o) => o.setName("user").setDescription("Member")),
+  new SlashCommandBuilder()
+    .setName("level").setDescription("View a member's level")
     .addUserOption((o) => o.setName("user").setDescription("Member")),
   new SlashCommandBuilder()
     .setName("leaderboard")
@@ -108,6 +112,8 @@ export const commands = [
     .setName("invites")
     .setDescription("View invite statistics")
     .addUserOption((o) => o.setName("user").setDescription("Member")),
+  new SlashCommandBuilder()
+    .setName("invite-leaderboard").setDescription("Show the invite leaderboard"),
   new SlashCommandBuilder()
     .setName("rep")
     .setDescription("Give reputation to a member")
@@ -202,6 +208,14 @@ export const commands = [
         .setMaxValue(20)
         .setRequired(true),
     )
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder()
+    .setName("drop").setDescription("Create a claimable drop")
+    .addStringOption((o) => o.setName("prize").setDescription("Prize").setRequired(true))
+    .addIntegerOption((o) => o.setName("minutes").setDescription("Expiry in minutes").setMinValue(1).setMaxValue(1440).setRequired(true))
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder()
+    .setName("setup").setDescription("Show server setup status")
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder()
     .setName("config")

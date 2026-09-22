@@ -33,6 +33,7 @@ export interface ExchangeRequest {
   title: string;
   description: string;
   link?: string;
+  bannerUrl?: string;
   status: "pending" | "approved" | "rejected";
   reason?: string;
   createdAt: string;
@@ -48,6 +49,15 @@ export interface Giveaway {
   endsAt: string;
   entries: string[];
   ended: boolean;
+}
+export interface Drop {
+  id: number;
+  guildId: string;
+  channelId: string;
+  prize: string;
+  claimedBy?: string;
+  createdAt: string;
+  expiresAt: string;
 }
 export interface Poll {
   id: number;
@@ -71,6 +81,7 @@ export interface GuildData {
   tickets: Ticket[];
   exchanges: ExchangeRequest[];
   giveaways: Giveaway[];
+  drops: Drop[];
   polls: Poll[];
   transcripts: Transcript[];
   stats: Record<string, MemberStats>;
@@ -81,11 +92,20 @@ export interface GuildData {
     welcomeMessage: string;
     ticketCategoryId?: string;
     exchangeChannelId?: string;
+    exchangeReviewChannelId?: string;
+    exchangePublishChannelId?: string;
+    exchangeReviewRoleId?: string;
+    ticketNameTemplate?: string;
+    ticketStaffRoleId?: string;
+    ticketMentionRoleId?: string;
+    ticketTranscriptChannelId?: string;
+    ticketOwnerCanClose?: boolean;
     staffRoleId?: string;
     modules?: Record<string, boolean>;
     leaveChannelId?: string;
     leaveMessage?: string;
     automod?: AutoModConfig;
+    rolePermissions?: Record<string, string[]>;
   };
   audit: Array<{
     action: string;
@@ -120,6 +140,7 @@ function freshGuild(): GuildData {
     tickets: [],
     exchanges: [],
     giveaways: [],
+    drops: [],
     polls: [],
     transcripts: [],
     stats: {},
@@ -128,6 +149,7 @@ function freshGuild(): GuildData {
       welcomeMessage: "Welcome {{user}} to {{guild}}!",
       modules: {},
       automod: { enabled: true, inviteLinks: true, mentionSpam: true, duplicateMessages: true, capsSpam: true, badWords: [], ignoredChannels: [], ignoredRoles: [], ignoredUsers: [], action: 'timeout', timeoutSeconds: 60 },
+      rolePermissions: {},
     },
     audit: [],
   };
@@ -171,7 +193,48 @@ export async function guildData(guildId: string): Promise<GuildData> {
   const data = await load();
   data[guildId] ??= freshGuild();
   data[guildId] = await syncFromSupabase(guildId, data[guildId]);
+  data[guildId] = normalizeGuildData(data[guildId] as GuildData & { config?: GuildData["config"] & Record<string, unknown> });
   return data[guildId];
+}
+
+function normalizeGuildData(value: GuildData & { config?: GuildData["config"] & Record<string, unknown> }): GuildData {
+  const raw = value.config ?? {};
+  const config = {
+    language: raw.language ?? "en",
+    welcomeMessage: raw.welcomeMessage ?? "Welcome {{user}} to {{guild}}!",
+    logChannelId: raw.logChannelId,
+    welcomeChannelId: raw.welcomeChannelId,
+    ticketCategoryId: raw.ticketCategoryId,
+    exchangeChannelId: raw.exchangeChannelId,
+    staffRoleId: raw.staffRoleId,
+    modules: raw.modules ?? {},
+    leaveChannelId: raw.leaveChannelId,
+    leaveMessage: raw.leaveMessage,
+    automod: raw.automod ?? freshGuild().config.automod,
+    rolePermissions: raw.rolePermissions ?? {},
+    exchangeReviewChannelId: raw.exchangeReviewChannelId,
+    exchangePublishChannelId: raw.exchangePublishChannelId,
+    exchangeReviewRoleId: raw.exchangeReviewRoleId,
+    ticketNameTemplate: raw.ticketNameTemplate,
+    ticketStaffRoleId: raw.ticketStaffRoleId,
+    ticketMentionRoleId: raw.ticketMentionRoleId,
+    ticketTranscriptChannelId: raw.ticketTranscriptChannelId,
+    ticketOwnerCanClose: raw.ticketOwnerCanClose
+  };
+  return {
+    ...freshGuild(),
+    ...value,
+    warnings: value.warnings ?? [],
+    tickets: value.tickets ?? [],
+    exchanges: value.exchanges ?? [],
+    giveaways: value.giveaways ?? [],
+    drops: value.drops ?? [],
+    polls: value.polls ?? [],
+    transcripts: value.transcripts ?? [],
+    stats: value.stats ?? {},
+    audit: value.audit ?? [],
+    config
+  };
 }
 
 export async function save(): Promise<void> {

@@ -97,10 +97,14 @@ client.on("interactionCreate", async (interaction) => {
       await createExchange(interaction, guild);
     else if (interaction.commandName === "rank")
       await showRank(interaction, guild);
+    else if (interaction.commandName === "level")
+      await showRank(interaction, guild);
     else if (interaction.commandName === "leaderboard")
       await leaderboard(interaction, guild);
     else if (interaction.commandName === "invites")
       await invites(interaction, guild);
+    else if (interaction.commandName === "invite-leaderboard")
+      await inviteLeaderboard(interaction, guild);
     else if (interaction.commandName === "rep") await rep(interaction, guild);
     else if (interaction.commandName === "poll") await poll(interaction, guild);
     else if (interaction.commandName === "pollvote")
@@ -114,6 +118,10 @@ client.on("interactionCreate", async (interaction) => {
     else if (interaction.commandName === "pay") await pay(interaction, guild);
     else if (interaction.commandName === "giveaway")
       await createGiveaway(interaction, guild);
+    else if (interaction.commandName === "drop")
+      await createDrop(interaction, guild);
+    else if (interaction.commandName === "setup")
+      await setup(interaction, guild);
     else if (interaction.commandName === "config")
       await interaction.reply({
         content: `Language: ${guild.config.language}\nLog channel: ${guild.config.logChannelId ?? "not configured"}\nWelcome channel: ${guild.config.welcomeChannelId ?? "not configured"}\nTicket category: ${guild.config.ticketCategoryId ?? "not configured"}`,
@@ -250,7 +258,7 @@ async function warn(
   interaction: import("discord.js").ChatInputCommandInteraction,
   guild: Awaited<ReturnType<typeof guildData>>,
 ) {
-  if (!canUse(interaction, "moderation.warn")) return interaction.reply({ content: "You do not have permission to warn members.", ephemeral: true });
+  if (!canUse(interaction, "moderation.warn", guild)) return interaction.reply({ content: "You do not have permission to warn members.", ephemeral: true });
   const user = interaction.options.getUser("user", true);
   const reason = interaction.options.getString("reason", true);
   const id = guild.warnings.length + 1;
@@ -263,24 +271,22 @@ async function warn(
   });
   await interaction.reply(`Warning #${id} issued to ${user} for: ${reason}`);
 }
-function canUse(interaction: import("discord.js").ChatInputCommandInteraction, action: PermissionAction): boolean {
+function canUse(interaction: import("discord.js").ChatInputCommandInteraction, action: PermissionAction, guild: Awaited<ReturnType<typeof guildData>>): boolean {
   if (!interaction.member || typeof interaction.member.permissions === "string") return false;
   if (interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return true;
   const permissions = interaction.member.permissions;
-  if (action.startsWith("moderation.") && permissions.has(PermissionFlagsBits.ModerateMembers)) return true;
-  if (action === "channels.manage" && permissions.has(PermissionFlagsBits.ManageChannels)) return true;
-  if (action === "moderation.ban" && permissions.has(PermissionFlagsBits.BanMembers)) return true;
-  if (action === "moderation.kick" && permissions.has(PermissionFlagsBits.KickMembers)) return true;
+  const requiredDiscordPermission = action === "moderation.ban" ? PermissionFlagsBits.BanMembers : action === "moderation.kick" ? PermissionFlagsBits.KickMembers : action === "channels.manage" ? PermissionFlagsBits.ManageChannels : PermissionFlagsBits.ModerateMembers;
+  if (!permissions.has(requiredDiscordPermission)) return false;
   if ("roles" in interaction.member && !Array.isArray(interaction.member.roles)) {
-    return hasPermission(interaction.member.roles.cache.map(role => role.name.toLowerCase()), action, {
-      moderator: ["moderation.warn", "moderation.manage", "moderation.kick", "moderation.timeout"],
-      administrator: ["moderation.warn", "moderation.manage", "moderation.ban", "moderation.kick", "moderation.timeout", "channels.manage"],
-    });
+    const roleMap = guild.config.rolePermissions ?? {};
+    const roleIds = interaction.member.roles.cache.map(role => role.id);
+    if (Object.keys(roleMap).length === 0) return true;
+    return roleIds.some(roleId => roleMap[roleId]?.includes(action));
   }
-  return false;
+  return true;
 }
 async function ban(interaction: import("discord.js").ChatInputCommandInteraction, guild: Awaited<ReturnType<typeof guildData>>) {
-  if (!canUse(interaction, "moderation.ban")) return interaction.reply({ content: "You do not have permission to ban members.", ephemeral: true });
+  if (!canUse(interaction, "moderation.ban", guild)) return interaction.reply({ content: "You do not have permission to ban members.", ephemeral: true });
   const user = interaction.options.getUser("user", true);
   const reason = interaction.options.getString("reason") ?? "No reason provided";
   await interaction.guild!.members.ban(user, { reason });
@@ -288,7 +294,7 @@ async function ban(interaction: import("discord.js").ChatInputCommandInteraction
   await interaction.reply(`${user.tag} was banned.`);
 }
 async function unban(interaction: import("discord.js").ChatInputCommandInteraction, guild: Awaited<ReturnType<typeof guildData>>) {
-  if (!canUse(interaction, "moderation.ban")) return interaction.reply({ content: "You do not have permission to unban members.", ephemeral: true });
+  if (!canUse(interaction, "moderation.ban", guild)) return interaction.reply({ content: "You do not have permission to unban members.", ephemeral: true });
   const userId = interaction.options.getString("user_id", true);
   const reason = interaction.options.getString("reason") ?? "No reason provided";
   await interaction.guild!.members.unban(userId, reason);
@@ -296,7 +302,7 @@ async function unban(interaction: import("discord.js").ChatInputCommandInteracti
   await interaction.reply(`User ${userId} was unbanned.`);
 }
 async function kick(interaction: import("discord.js").ChatInputCommandInteraction, guild: Awaited<ReturnType<typeof guildData>>) {
-  if (!canUse(interaction, "moderation.kick")) return interaction.reply({ content: "You do not have permission to kick members.", ephemeral: true });
+  if (!canUse(interaction, "moderation.kick", guild)) return interaction.reply({ content: "You do not have permission to kick members.", ephemeral: true });
   const user = interaction.options.getUser("user", true);
   const member = await interaction.guild!.members.fetch(user.id);
   if (!member.kickable) return interaction.reply({ content: "I cannot kick that member because of role hierarchy.", ephemeral: true });
@@ -306,7 +312,7 @@ async function kick(interaction: import("discord.js").ChatInputCommandInteractio
   await interaction.reply(`${user.tag} was kicked.`);
 }
 async function untimeout(interaction: import("discord.js").ChatInputCommandInteraction, guild: Awaited<ReturnType<typeof guildData>>) {
-  if (!canUse(interaction, "moderation.timeout")) return interaction.reply({ content: "You do not have permission to remove timeouts.", ephemeral: true });
+  if (!canUse(interaction, "moderation.timeout", guild)) return interaction.reply({ content: "You do not have permission to remove timeouts.", ephemeral: true });
   const user = interaction.options.getUser("user", true);
   const member = await interaction.guild!.members.fetch(user.id);
   if (!member.moderatable) return interaction.reply({ content: "I cannot modify that member because of role hierarchy.", ephemeral: true });
@@ -315,7 +321,7 @@ async function untimeout(interaction: import("discord.js").ChatInputCommandInter
   await interaction.reply(`Timeout removed for ${user.tag}.`);
 }
 async function unwarn(interaction: import("discord.js").ChatInputCommandInteraction, guild: Awaited<ReturnType<typeof guildData>>) {
-  if (!canUse(interaction, "moderation.warn")) return interaction.reply({ content: "You do not have permission to remove warnings.", ephemeral: true });
+  if (!canUse(interaction, "moderation.warn", guild)) return interaction.reply({ content: "You do not have permission to remove warnings.", ephemeral: true });
   const id = interaction.options.getInteger("case", true);
   const index = guild.warnings.findIndex(warning => warning.id === id);
   if (index < 0) return interaction.reply({ content: "Warning not found.", ephemeral: true });
@@ -324,14 +330,14 @@ async function unwarn(interaction: import("discord.js").ChatInputCommandInteract
   await interaction.reply(`Warning #${id} removed.`);
 }
 async function lockChannel(interaction: import("discord.js").ChatInputCommandInteraction, guild: Awaited<ReturnType<typeof guildData>>, locked: boolean) {
-  if (!canUse(interaction, "channels.manage")) return interaction.reply({ content: "You do not have permission to manage channels.", ephemeral: true });
+  if (!canUse(interaction, "channels.manage", guild)) return interaction.reply({ content: "You do not have permission to manage channels.", ephemeral: true });
   if (!interaction.channel || !interaction.guild || !("permissionOverwrites" in interaction.channel)) return interaction.reply({ content: "This command requires a guild channel.", ephemeral: true });
   await interaction.channel.permissionOverwrites.edit(interaction.guild.roles.everyone, { SendMessages: locked ? false : null });
   addAudit(guild, locked ? "channel.lock" : "channel.unlock", interaction.user.id, interaction.channelId);
   await interaction.reply({ content: locked ? "Channel locked." : "Channel unlocked.", ephemeral: true });
 }
 async function slowmode(interaction: import("discord.js").ChatInputCommandInteraction, guild: Awaited<ReturnType<typeof guildData>>) {
-  if (!canUse(interaction, "channels.manage")) return interaction.reply({ content: "You do not have permission to manage channels.", ephemeral: true });
+  if (!canUse(interaction, "channels.manage", guild)) return interaction.reply({ content: "You do not have permission to manage channels.", ephemeral: true });
   if (!interaction.channel || !interaction.channel.isTextBased() || !("setRateLimitPerUser" in interaction.channel)) return interaction.reply({ content: "This command requires a text channel.", ephemeral: true });
   const seconds = interaction.options.getInteger("seconds", true);
   await interaction.channel.setRateLimitPerUser(seconds);
@@ -358,6 +364,8 @@ async function showWarnings(
 async function clearMessages(
   interaction: import("discord.js").ChatInputCommandInteraction,
 ) {
+  const guild = await guildData(interaction.guild?.id ?? "");
+  if (!canUse(interaction, "moderation.manage", guild)) return interaction.reply({ content: "You do not have permission to delete messages.", ephemeral: true });
   if (
     !interaction.channel?.isTextBased() ||
     !("bulkDelete" in interaction.channel)
@@ -375,6 +383,7 @@ async function timeout(
   interaction: import("discord.js").ChatInputCommandInteraction,
   guild: Awaited<ReturnType<typeof guildData>>,
 ) {
+  if (!canUse(interaction, "moderation.timeout", guild)) return interaction.reply({ content: "You do not have permission to timeout members.", ephemeral: true });
   const user = interaction.options.getUser("user", true);
   const minutes = interaction.options.getInteger("minutes", true);
   const member = await interaction.guild!.members.fetch(user.id);
@@ -419,9 +428,10 @@ async function createTicket(
       ],
     },
   ];
-  if (guild.config.staffRoleId)
+  const staffRoleId = guild.config.ticketStaffRoleId ?? guild.config.staffRoleId;
+  if (staffRoleId)
     permissionOverwrites.push({
-      id: guild.config.staffRoleId,
+      id: staffRoleId,
       allow: [
         PermissionFlagsBits.ViewChannel,
         PermissionFlagsBits.SendMessages,
@@ -429,7 +439,11 @@ async function createTicket(
       ],
     });
   const channel = await interaction.guild!.channels.create({
-    name: `ticket-${interaction.user.username}`.slice(0, 90),
+    name: (guild.config.ticketNameTemplate ?? "ticket-{{username}}")
+      .replaceAll("{{username}}", interaction.user.username)
+      .replaceAll("{{user_id}}", interaction.user.id)
+      .replace(/[^a-zA-Z0-9-]/g, "-")
+      .slice(0, 90),
     type: ChannelType.GuildText,
     parent: guild.config.ticketCategoryId,
     permissionOverwrites,
@@ -454,8 +468,9 @@ async function createTicket(
       .setStyle(ButtonStyle.Danger),
   );
   await channel.send({
-    content: `${interaction.user}, support staff will be with you shortly.`,
+    content: `${guild.config.ticketMentionRoleId ? `<@&${guild.config.ticketMentionRoleId}> ` : ""}${interaction.user}, support staff will be with you shortly.`,
     components: [row],
+  allowedMentions: guild.config.ticketMentionRoleId ? { roles: [guild.config.ticketMentionRoleId], users: [interaction.user.id] } : { users: [interaction.user.id] },
   });
   await interaction.reply({
     content: `Ticket created: ${channel}`,
@@ -484,8 +499,9 @@ async function createTranscript(
     .join("\n");
   guild.transcripts ??= [];
   guild.transcripts.push({ id: crypto.randomUUID(), ticketId: ticket.id, channelId: ticket.channelId, content, createdAt: new Date().toISOString() });
-  if (guild.config.logChannelId) {
-    const logChannel = interaction.guild?.channels.cache.get(guild.config.logChannelId);
+  const transcriptChannelId = guild.config.ticketTranscriptChannelId ?? guild.config.logChannelId;
+  if (transcriptChannelId) {
+    const logChannel = interaction.guild?.channels.cache.get(transcriptChannelId);
     if (logChannel?.isTextBased() && "send" in logChannel) {
       await logChannel.send({ content: `Transcript for ticket #${ticket.id}`, files: [{ attachment: Buffer.from(content || "No messages", "utf8"), name: `ticket-${ticket.id}-transcript.txt` }] });
     }
@@ -496,19 +512,23 @@ async function createExchange(
   guild: Awaited<ReturnType<typeof guildData>>,
 ) {
   const requestId = `EX-${Date.now().toString(36).toUpperCase()}`;
+  const banner = interaction.options.getAttachment("banner", true);
+  if (!banner.contentType?.startsWith("image/")) return interaction.reply({ content: "The banner must be an image upload.", ephemeral: true });
+  const description = sanitizeExchangeText(interaction.options.getString("description", true));
   const request = {
     id: requestId,
     guildId: interaction.guild!.id,
     userId: interaction.user.id,
     title: interaction.options.getString("title", true),
-    description: interaction.options.getString("description", true),
-    link: interaction.options.getString("link") ?? undefined,
+    description,
+    link: sanitizeExchangeText(interaction.options.getString("link") ?? "") || undefined,
+    bannerUrl: banner.url,
     status: "pending" as const,
     createdAt: new Date().toISOString(),
   };
   guild.exchanges.push(request);
-  const channel = guild.config.exchangeChannelId
-    ? interaction.guild!.channels.cache.get(guild.config.exchangeChannelId)
+  const channel = (guild.config.exchangeReviewChannelId ?? guild.config.exchangeChannelId)
+    ? interaction.guild!.channels.cache.get(guild.config.exchangeReviewChannelId ?? guild.config.exchangeChannelId!)
     : interaction.channel;
   if (channel?.isTextBased() && "send" in channel) {
     const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
@@ -522,6 +542,7 @@ async function createExchange(
         .setStyle(ButtonStyle.Danger),
     );
     await channel.send({
+      content: guild.config.exchangeReviewRoleId ? `<@&${guild.config.exchangeReviewRoleId}>` : undefined,
       embeds: [
         new EmbedBuilder()
           .setTitle(`Exchange ${requestId}`)
@@ -530,15 +551,20 @@ async function createExchange(
           .addFields(
             { name: "Requester", value: `<@${request.userId}>` },
             { name: "Link", value: request.link ?? "None" },
-          ),
+          )
+          .setImage(request.bannerUrl),
       ],
       components: [row],
+      allowedMentions: { roles: guild.config.exchangeReviewRoleId ? [guild.config.exchangeReviewRoleId] : [], users: [request.userId] },
     });
   }
   await interaction.reply({
     content: `Exchange request ${requestId} submitted.`,
     ephemeral: true,
   });
+}
+function sanitizeExchangeText(value: string): string {
+  return value.replace(/@(everyone|here)/gi, "[$1]").replace(/<@&?\d+>/g, "[mention]");
 }
 async function showRank(
   interaction: import("discord.js").ChatInputCommandInteraction,
@@ -579,6 +605,13 @@ async function invites(
     content: `${user} has ${stats.invites} tracked invites.`,
     ephemeral: true,
   });
+}
+async function inviteLeaderboard(
+  interaction: import("discord.js").ChatInputCommandInteraction,
+  guild: Awaited<ReturnType<typeof guildData>>,
+) {
+  const rows = Object.entries(guild.stats).sort(([, left], [, right]) => right.invites - left.invites).slice(0, 10);
+  await interaction.reply({ content: rows.length ? rows.map(([userId, stats], index) => `${index + 1}. <@${userId}> - ${stats.invites} invites`).join("\n") : "No invite data yet.", ephemeral: true });
 }
 async function rep(
   interaction: import("discord.js").ChatInputCommandInteraction,
@@ -655,6 +688,8 @@ async function pollvote(
 async function announce(
   interaction: import("discord.js").ChatInputCommandInteraction,
 ) {
+  const guild = await guildData(interaction.guild?.id ?? "");
+  if (!canUse(interaction, "moderation.manage", guild)) return interaction.reply({ content: "You do not have permission to announce.", ephemeral: true });
   if (!interaction.channel?.isTextBased() || !("send" in interaction.channel))
     return interaction.reply({
       content: "This requires a text channel.",
@@ -761,6 +796,20 @@ async function createGiveaway(
     ephemeral: true,
   });
 }
+async function createDrop(
+  interaction: import("discord.js").ChatInputCommandInteraction,
+  guild: Awaited<ReturnType<typeof guildData>>,
+) {
+  if (!interaction.channel?.isTextBased() || !("send" in interaction.channel)) return interaction.reply({ content: "Drops require a text channel.", ephemeral: true });
+  const drop = { id: guild.drops.length + 1, guildId: interaction.guild!.id, channelId: interaction.channelId, prize: interaction.options.getString("prize", true), createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + interaction.options.getInteger("minutes", true) * 60_000).toISOString() };
+  guild.drops.push(drop);
+  const message = await interaction.channel.send({ embeds: [new EmbedBuilder().setTitle(`Drop #${drop.id}`).setDescription(`Prize: **${drop.prize}**\nExpires: <t:${Math.floor(new Date(drop.expiresAt).getTime() / 1000)}:R>`).setColor(0x13a673)], components: [new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId(`drop:claim:${drop.id}`).setLabel("Claim drop").setStyle(ButtonStyle.Success))] });
+  addAudit(guild, "drop.created", interaction.user.id, String(drop.id), { messageId: message.id, prize: drop.prize });
+  await interaction.reply({ content: `Drop #${drop.id} created.`, ephemeral: true });
+}
+async function setup(interaction: import("discord.js").ChatInputCommandInteraction, guild: Awaited<ReturnType<typeof guildData>>) {
+  await interaction.reply({ content: `Setup status\nLanguage: ${guild.config.language}\nWelcome channel: ${guild.config.welcomeChannelId ?? "not configured"}\nLog channel: ${guild.config.logChannelId ?? "not configured"}\nTicket category: ${guild.config.ticketCategoryId ?? "not configured"}\nExchange channel: ${guild.config.exchangeChannelId ?? "not configured"}`, ephemeral: true });
+}
 
 async function handleButton(
   interaction: import("discord.js").ButtonInteraction,
@@ -776,10 +825,12 @@ async function handleButton(
         ephemeral: true,
       });
     const isOwner = ticket.userId === interaction.user.id;
+    const configuredStaff = !!interaction.member && "roles" in interaction.member && !Array.isArray(interaction.member.roles) && Object.keys(guild.config.rolePermissions ?? {}).length > 0 && interaction.member.roles.cache.some(role => guild.config.rolePermissions?.[role.id]?.includes("tickets.manage"));
     const isStaff =
       interaction.member &&
       typeof interaction.member.permissions !== "string" &&
       (interaction.member.permissions.has(PermissionFlagsBits.ManageChannels) ||
+      configuredStaff ||
         (!!guild.config.staffRoleId &&
           "roles" in interaction.member &&
           !Array.isArray(interaction.member.roles) &&
@@ -803,11 +854,26 @@ async function handleButton(
         content: `Ticket claimed by <@${interaction.user.id}>.`,
         components: [
           new ActionRowBuilder<ButtonBuilder>().addComponents(
+            new ButtonBuilder().setCustomId(`ticket:unclaim:${ticket.id}`).setLabel("Unclaim").setStyle(ButtonStyle.Secondary),
             new ButtonBuilder().setCustomId(`ticket:close:${ticket.id}`).setLabel("Close").setStyle(ButtonStyle.Danger),
           ),
         ],
       });
+    } else if (action === "unclaim") {
+      if (!isStaff) return interaction.reply({ content: "Only support staff can unclaim tickets.", ephemeral: true });
+      if (ticket.status !== "claimed") return interaction.reply({ content: "This ticket is not claimed.", ephemeral: true });
+      ticket.status = "open";
+      ticket.claimedBy = undefined;
+      await interaction.update({
+        content: `Ticket unclaimed by <@${interaction.user.id}>.`,
+        components: [new ActionRowBuilder<ButtonBuilder>().addComponents(
+          new ButtonBuilder().setCustomId(`ticket:claim:${ticket.id}`).setLabel("Claim").setStyle(ButtonStyle.Primary),
+          new ButtonBuilder().setCustomId(`ticket:close:${ticket.id}`).setLabel("Close").setStyle(ButtonStyle.Danger),
+        )],
+      });
     } else if (action === "close") {
+      if (isOwner && guild.config.ticketOwnerCanClose === false && !isStaff)
+        return interaction.reply({ content: "Only support staff can close this ticket.", ephemeral: true });
       await createTranscript(interaction, guild, ticket);
       ticket.status = "closed";
       ticket.closedAt = new Date().toISOString();
@@ -857,7 +923,7 @@ async function handleButton(
     if (
       !interaction.member ||
       typeof interaction.member.permissions === "string" ||
-      !interaction.member.permissions.has(PermissionFlagsBits.ManageGuild)
+      !canUseButton(interaction, action === "approve" ? "exchange.approve" : "exchange.review", guild)
     )
       return interaction.reply({
         content: "You need Manage Server to review exchanges.",
@@ -880,6 +946,13 @@ async function handleButton(
     }
     request.status = "approved";
     request.reviewedBy = interaction.user.id;
+    const requester = await client.users.fetch(request.userId).catch(() => null);
+    await requester?.send(`Your exchange ${request.id} was approved.`).catch(() => undefined);
+    const publishChannelId = guild.config.exchangePublishChannelId ?? guild.config.exchangeChannelId;
+    const publishChannel = publishChannelId ? interaction.guild.channels.cache.get(publishChannelId) : undefined;
+    if (publishChannel?.isTextBased() && "send" in publishChannel) {
+      await publishChannel.send({ content: `<@${request.userId}>`, embeds: [new EmbedBuilder().setTitle(`Exchange ${request.id}`).setDescription(request.description).setImage(request.bannerUrl ?? null).addFields({ name: "Link", value: request.link ?? "None" }).setColor(0x13a673)], allowedMentions: { users: [request.userId] } });
+    }
     await interaction.update({
       content: `Exchange ${rawId} approved by ${interaction.user}.`,
       embeds: [],
@@ -902,8 +975,25 @@ async function handleButton(
       content: "You entered the giveaway!",
       ephemeral: true,
     });
+  } else if (type === "drop" && action === "claim") {
+    const drop = guild.drops.find(item => item.id === Number(rawId));
+    if (!drop || drop.claimedBy || new Date(drop.expiresAt) <= new Date()) return interaction.reply({ content: "This drop is no longer available.", ephemeral: true });
+    drop.claimedBy = interaction.user.id;
+    addAudit(guild, "drop.claimed", interaction.user.id, String(drop.id));
+    await interaction.update({ content: `Drop claimed by <@${interaction.user.id}>.`, embeds: [], components: [] });
   }
   await save();
+}
+
+function canUseButton(interaction: import("discord.js").ButtonInteraction, action: PermissionAction, guild: Awaited<ReturnType<typeof guildData>>): boolean {
+  if (!interaction.member || typeof interaction.member.permissions === "string") return false;
+  if (interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return true;
+  if ("roles" in interaction.member && !Array.isArray(interaction.member.roles)) {
+    const roleMap = guild.config.rolePermissions ?? {};
+    if (Object.keys(roleMap).length === 0) return interaction.member.permissions.has(PermissionFlagsBits.ManageGuild);
+    return interaction.member.roles.cache.some(role => roleMap[role.id]?.includes(action));
+  }
+  return false;
 }
 async function handleModal(
   interaction: import("discord.js").ModalSubmitInteraction,
@@ -924,6 +1014,8 @@ async function handleModal(
   request.status = "rejected";
   request.reason = interaction.fields.getTextInputValue("reason");
   request.reviewedBy = interaction.user.id;
+  const requester = await client.users.fetch(request.userId).catch(() => null);
+  await requester?.send(`Your exchange ${request.id} was declined.${request.reason ? ` Reason: ${request.reason}` : ""}`).catch(() => undefined);
   await interaction.reply({
     content: `Exchange ${request.id} rejected.`,
     ephemeral: true,

@@ -1,13 +1,16 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { configFor, updateConfig } from './config-store.js';
 
 export type PermissionAction =
-  | 'moderation.ban' | 'moderation.kick' | 'moderation.timeout'
+  | 'moderation.ban' | 'moderation.kick' | 'moderation.timeout' | 'moderation.warn' | 'moderation.manage'
+  | 'channels.manage' | 'roles.manage' | 'logs.view' | 'automod.manage'
   | 'tickets.manage' | 'exchange.review' | 'exchange.approve'
   | 'dashboard.access' | 'automod.configure';
 
 export const permissionActions: PermissionAction[] = [
-  'moderation.ban', 'moderation.kick', 'moderation.timeout', 'tickets.manage',
+  'moderation.ban', 'moderation.kick', 'moderation.timeout', 'moderation.warn', 'moderation.manage',
+  'channels.manage', 'roles.manage', 'logs.view', 'automod.manage', 'tickets.manage',
   'exchange.review', 'exchange.approve', 'dashboard.access', 'automod.configure'
 ];
 
@@ -63,7 +66,9 @@ export async function listRoles(guildId: string): Promise<ManagedRole[]> {
     await persist();
     return remote;
   }
-  return (await all())[guildId] ?? [];
+  const stored = (await all())[guildId] ?? [];
+  const config = await configFor(guildId);
+  return stored.map(role => ({ ...role, permissions: (config.rolePermissions?.[role.id] ?? role.permissions) as PermissionAction[] }));
 }
 
 export async function updateRole(guildId: string, roleId: string, patch: Partial<ManagedRole>): Promise<ManagedRole | null> {
@@ -78,7 +83,7 @@ export async function updateRole(guildId: string, roleId: string, patch: Partial
   if (typeof patch.hoist === 'boolean' && !role.managed) role.hoist = patch.hoist;
   if (typeof patch.mentionable === 'boolean' && !role.managed) role.mentionable = patch.mentionable;
   const token = process.env.BOT_TOKEN;
-  if (token && !role.managed && (patch.name || patch.color)) {
+  if (token && !role.managed && (patch.name || patch.color || typeof patch.hoist === 'boolean' || typeof patch.mentionable === 'boolean')) {
     const response = await fetch(`https://discord.com/api/v10/guilds/${guildId}/roles/${roleId}`, {
       method: 'PATCH',
       headers: { Authorization: `Bot ${token}`, 'Content-Type': 'application/json' },
@@ -88,6 +93,8 @@ export async function updateRole(guildId: string, roleId: string, patch: Partial
   }
   (await all())[guildId] = roles;
   await persist();
+  const config = await configFor(guildId);
+  await updateConfig(guildId, { rolePermissions: { ...config.rolePermissions, [role.id]: role.permissions } });
   return role;
 }
 
