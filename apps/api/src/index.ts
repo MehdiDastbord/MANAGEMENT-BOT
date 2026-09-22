@@ -3,6 +3,7 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import { configFor, updateConfig } from './config-store.js';
 import { createFeature, deleteFeature, exportGuild, featureNames, importGuild, listFeature, updateFeature } from './features-store.js';
+import { listRoles, updateRole } from './roles-store.js';
 
 const app = Fastify({ logger: true });
 const allowedOrigins = (process.env.DASHBOARD_ORIGIN ?? '')
@@ -41,6 +42,17 @@ app.get<{ Params: { guildId: string } }>('/api/guilds/:guildId/overview', async 
 }));
 
 app.get('/api/catalog', async () => ({ features: featureNames }));
+
+app.get<{ Params: { guildId: string } }>('/api/guilds/:guildId/roles', async (request) => ({ roles: await listRoles(request.params.guildId) }));
+
+app.patch<{ Params: { guildId: string; roleId: string }; Body: Record<string, unknown> }>('/api/guilds/:guildId/roles/:roleId', async (request, reply) => {
+  try {
+    const role = await updateRole(request.params.guildId, request.params.roleId, request.body ?? {});
+    return role ? role : reply.code(404).send({ error: 'Role not found.' });
+  } catch (error) {
+    return reply.code(400).send({ error: error instanceof Error ? error.message : 'Role update failed.' });
+  }
+});
 
 app.get<{ Params: { guildId: string; feature: string } }>('/api/guilds/:guildId/:feature', async (request, reply) => {
   try { return await listFeature(request.params.guildId, request.params.feature); }

@@ -2,95 +2,63 @@
 
 import { useEffect, useState } from 'react';
 
-type Config = {
-  guildId: string;
-  language: 'en' | 'fa';
-  modules: Record<string, boolean>;
-  channels: Record<string, string | undefined>;
-  messages: { welcome: string };
-};
+type Config = { guildId: string; language: 'en' | 'fa'; modules: Record<string, boolean>; channels: Record<string, string | undefined>; messages: { welcome: string } };
 type FeatureName = 'automations' | 'announcements' | 'scheduledMessages' | 'polls' | 'forms' | 'reputation' | 'achievements' | 'appeals';
 type FeatureRecord = { id: string; createdAt: string; updatedAt: string; [key: string]: unknown };
+type ViewName = 'Overview' | 'Modules' | 'Roles' | 'Moderation' | 'Tickets' | 'Exchange' | 'Economy' | 'Analytics' | 'Automations' | 'Forms' | 'Appeals';
+type PermissionAction = 'moderation.ban' | 'moderation.kick' | 'moderation.timeout' | 'tickets.manage' | 'exchange.review' | 'exchange.approve' | 'dashboard.access' | 'automod.configure';
+type Role = { id: string; name: string; color: string; position: number; managed: boolean; permissions: PermissionAction[] };
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 const apiKey = process.env.NEXT_PUBLIC_API_KEY;
 const apiHeaders = apiKey ? { Authorization: `Bearer ${apiKey}` } : undefined;
+const navItems: ViewName[] = ['Overview', 'Modules', 'Roles', 'Moderation', 'Tickets', 'Exchange', 'Economy', 'Analytics', 'Automations', 'Forms', 'Appeals'];
+const featureForView: Partial<Record<ViewName, FeatureName>> = { Automations: 'automations', Forms: 'forms', Appeals: 'appeals', Exchange: 'announcements' };
+const permissionLabels: Record<PermissionAction, string> = { 'moderation.ban': 'Ban members', 'moderation.kick': 'Kick members', 'moderation.timeout': 'Timeout members', 'tickets.manage': 'Manage tickets', 'exchange.review': 'Review exchanges', 'exchange.approve': 'Approve exchanges', 'dashboard.access': 'Open dashboard', 'automod.configure': 'Configure AutoMod' };
+
+async function request(path: string, init?: RequestInit) {
+  const response = await fetch(`${apiUrl}${path}`, { ...init, headers: { ...(init?.headers ?? {}), ...(apiHeaders ?? {}) } });
+  if (!response.ok) throw new Error((await response.json().catch(() => null))?.error ?? 'The API rejected this request.');
+  return response.json();
+}
 
 export default function HomePage() {
-  const [error, setError] = useState('');
+  const [view, setView] = useState<ViewName>('Overview');
   const [guildId, setGuildId] = useState('demo-guild');
   const [config, setConfig] = useState<Config | null>(null);
-  const [saved, setSaved] = useState(false);
-  const [feature, setFeature] = useState<FeatureName>('automations');
+  const [roles, setRoles] = useState<Role[]>([]);
   const [records, setRecords] = useState<FeatureRecord[]>([]);
+  const [feature, setFeature] = useState<FeatureName>('automations');
   const [recordName, setRecordName] = useState('');
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
 
-  async function load() {
-    try {
-      setError('');
-      const response = await fetch(`${apiUrl}/api/guilds/${guildId}/config`, { headers: apiHeaders });
-      if (!response.ok) throw new Error('The API rejected this request.');
-      setConfig(await response.json() as Config);
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Could not connect to the API.');
-    }
+  async function loadGuild() {
+    try { setError(''); const [nextConfig, nextRoles] = await Promise.all([request(`/api/guilds/${guildId}/config`) as Promise<Config>, request(`/api/guilds/${guildId}/roles`) as Promise<{ roles: Role[] }>]); setConfig(nextConfig); setRoles(nextRoles.roles); }
+    catch (loadError) { setError(loadError instanceof Error ? loadError.message : 'Could not connect to the API.'); }
   }
+  async function loadFeature(nextFeature = feature) { try { setRecords(await request(`/api/guilds/${guildId}/${nextFeature}`) as FeatureRecord[]); } catch (loadError) { setError(loadError instanceof Error ? loadError.message : 'Could not load records.'); } }
+  useEffect(() => { void loadGuild(); }, []);
+  useEffect(() => { const nextFeature = featureForView[view] ?? feature; setFeature(nextFeature); if (featureForView[view]) void loadFeature(nextFeature); }, [view, guildId]);
+  function updateConfig(patch: Partial<Config>) { if (config) setConfig({ ...config, ...patch }); }
+  async function saveConfig() { if (!config) return; try { await request(`/api/guilds/${guildId}/config`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(config) }); setNotice('Configuration saved.'); } catch (saveError) { setError(saveError instanceof Error ? saveError.message : 'Configuration could not be saved.'); } }
+  async function saveRole(role: Role) { try { const updated = await request(`/api/guilds/${guildId}/roles/${role.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(role) }) as Role; setRoles(current => current.map(item => item.id === updated.id ? updated : item)); setNotice(`${updated.name} permissions saved.`); } catch (saveError) { setError(saveError instanceof Error ? saveError.message : 'Role could not be saved.'); } }
+  async function addFeature() { if (!recordName.trim()) return; try { await request(`/api/guilds/${guildId}/${feature}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: recordName.trim(), enabled: true }) }); setRecordName(''); await loadFeature(); setNotice('Record created.'); } catch (createError) { setError(createError instanceof Error ? createError.message : 'Record could not be created.'); } }
+  async function removeFeature(id: string) { await request(`/api/guilds/${guildId}/${feature}/${id}`, { method: 'DELETE' }); await loadFeature(); }
 
-  useEffect(() => { void load(); }, []);
-
-  async function loadFeature(nextFeature = feature) {
-    const response = await fetch(`${apiUrl}/api/guilds/${guildId}/${nextFeature}`, { headers: apiHeaders });
-    if (response.ok) setRecords(await response.json() as FeatureRecord[]);
-  }
-
-  useEffect(() => { void loadFeature(); }, [feature, guildId]);
-
-  async function addFeature() {
-    if (!recordName.trim()) return;
-    const response = await fetch(`${apiUrl}/api/guilds/${guildId}/${feature}`, { method: 'POST', headers: { 'content-type': 'application/json', ...(apiHeaders ?? {}) }, body: JSON.stringify({ name: recordName.trim(), enabled: true }) });
-    if (response.ok) { setRecordName(''); await loadFeature(); }
-  }
-
-  async function removeFeature(id: string) {
-    await fetch(`${apiUrl}/api/guilds/${guildId}/${feature}/${id}`, { method: 'DELETE', headers: apiHeaders });
-    await loadFeature();
-  }
-
-  async function saveConfig() {
-    if (!config) return;
-    const response = await fetch(`${apiUrl}/api/guilds/${guildId}/config`, {
-      method: 'PUT',
-      headers: { 'content-type': 'application/json', ...(apiHeaders ?? {}) },
-      body: JSON.stringify(config)
-    });
-    if (!response.ok) { setError('The configuration could not be saved.'); return; }
-    setSaved(true);
-    window.setTimeout(() => setSaved(false), 1800);
-  }
-
-  return (
-    <div className="shell">
-      <aside className="sidebar">
-        <div className="brand">TEHRAN CLUB<span>MANAGEMENT PLATFORM</span></div>
-        <p className="nav-label">CONTROL CENTER</p>
-        {['Overview', 'Modules', 'Moderation', 'Tickets', 'Exchange', 'Economy', 'Analytics', 'Automations', 'Forms', 'Appeals'].map((item, index) => <button className={`nav-item ${index === 0 ? 'active' : ''}`} key={item}>{item}</button>)}
-        <div className="sidebar-foot">Deployment mode<br />API-connected dashboard</div>
-      </aside>
-      <main className="content">
-        <header className="topbar">
-          <div><p className="eyebrow">DISCORD OPERATIONS</p><h1>Server control, clearly.</h1><p className="subtitle">Configure guild behavior without redeploying the bot.</p></div>
-          <div className="guild-picker"><label className="field-label">Guild ID<input value={guildId} onChange={event => setGuildId(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') void load(); }} /></label><button className="primary" onClick={() => void load()}>Load</button></div>
-        </header>
-        {error && <p className="error">{error}</p>}
-        {!config ? <p>Loading configuration...</p> : <>
-          <section className="cards"><div className="metric"><strong>Connected</strong><span>Runtime configuration</span></div><div className="metric"><strong>{Object.values(config.modules).filter(Boolean).length}</strong><span>Active modules</span></div><div className="metric"><strong>{config.language.toUpperCase()}</strong><span>Server language</span></div></section>
-          <section className="panel"><h2>Modules</h2><div className="module-grid">{Object.entries(config.modules).map(([name, enabled]) => <label className="module" key={name}><span>{name}</span><input type="checkbox" checked={enabled} onChange={event => setConfig({ ...config, modules: { ...config.modules, [name]: event.target.checked } })} /></label>)}</div></section>
-          <section className="panel"><h2>Messages and language</h2><div className="form-grid"><label className="field-label">Welcome message<input value={config.messages.welcome} onChange={event => setConfig({ ...config, messages: { welcome: event.target.value } })} /></label><label className="field-label">Language<select value={config.language} onChange={event => setConfig({ ...config, language: event.target.value as 'en' | 'fa' })}><option value="en">English</option><option value="fa">فارسی</option></select></label></div></section>
-          <section className="panel"><h2>Discord channels</h2><div className="form-grid">{[['logs', 'Log channel ID'], ['welcome', 'Welcome channel ID'], ['tickets', 'Ticket category ID'], ['exchange', 'Exchange channel ID']].map(([key, label]) => <label className="field-label" key={key}>{label}<input value={config.channels[key] ?? ''} onChange={event => setConfig({ ...config, channels: { ...config.channels, [key]: event.target.value || undefined } })} /></label>)}</div></section>
-          <section className="panel"><h2>Management records</h2><div className="form-grid"><label className="field-label">Module<select value={feature} onChange={event => { const value = event.target.value as FeatureName; setFeature(value); void loadFeature(value); }}><option value="automations">Automations</option><option value="announcements">Announcements</option><option value="scheduledMessages">Scheduled messages</option><option value="polls">Polls</option><option value="forms">Forms</option><option value="reputation">Reputation rules</option><option value="achievements">Achievements</option><option value="appeals">Appeals</option></select></label><label className="field-label">New record name<input value={recordName} onChange={event => setRecordName(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') void addFeature(); }} /></label></div><button className="primary" onClick={() => void addFeature()}>Create record</button><div style={{ marginTop: 14 }}>{records.map(record => <div className="module" key={record.id}><span>{String(record.name ?? record.id)}</span><button onClick={() => void removeFeature(record.id)}>Delete</button></div>)}{records.length === 0 && <p className="subtitle">No records yet.</p>}</div></section>
-          <button className="primary" onClick={() => void saveConfig()}>{saved ? 'Saved' : 'Save configuration'}</button><p className="status">{saved ? 'Configuration saved successfully.' : 'Changes remain local until you save.'}</p>
-        </>}
-      </main>
-    </div>
-  );
+  const activeModuleCount = config ? Object.values(config.modules).filter(Boolean).length : 0;
+  const currentFeature = featureForView[view];
+  return <div className="shell"><aside className="sidebar"><div className="brand">TEHRAN CLUB<span>MANAGEMENT PLATFORM</span></div><p className="nav-label">CONTROL CENTER</p>{navItems.map(item => <button className={`nav-item ${view === item ? 'active' : ''}`} key={item} onClick={() => setView(item)}>{item}</button>)}<div className="sidebar-foot">API-connected dashboard<br />Discord role sync enabled.</div></aside><main className="content"><header className="topbar"><div><p className="eyebrow">DISCORD OPERATIONS / {view.toUpperCase()}</p><h1>{view === 'Overview' ? 'Server control, clearly.' : view}</h1><p className="subtitle">Manage the live configuration for this guild.</p></div><div className="guild-picker"><label className="field-label">Guild ID<input value={guildId} onChange={event => setGuildId(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') void loadGuild(); }} /></label><button className="primary" onClick={() => void loadGuild()}>Load</button></div></header>{error && <div className="alert error">{error}</div>}{notice && <div className="alert success">{notice}</div>}{!config ? <section className="empty-state">Loading guild configuration...</section> : <>{view === 'Overview' && <Overview config={config} roles={roles} activeModuleCount={activeModuleCount} onNavigate={setView} />}{view === 'Modules' && <><ModulePanel config={config} onChange={modules => updateConfig({ modules })} /><ChannelPanel config={config} onChange={channels => updateConfig({ channels })} /><SaveButton onSave={saveConfig} /></>}{view === 'Roles' && <RolesPanel roles={roles} onSave={saveRole} />}{view === 'Moderation' && <ModerationPanel config={config} onChange={modules => updateConfig({ modules })} />}{view === 'Tickets' && <ChannelPanel config={config} onChange={channels => updateConfig({ channels })} only={['tickets']} />}{view === 'Economy' && <EmptyPanel title="Economy operations" text="Balances, daily rewards, transfers, and giveaways are managed by the bot." />}{view === 'Analytics' && <AnalyticsPanel config={config} roles={roles} />}{currentFeature && <RecordsPanel feature={currentFeature} records={records} name={recordName} onName={setRecordName} onAdd={addFeature} onDelete={removeFeature} />}</>}</main></div>;
 }
+
+function Overview({ config, roles, activeModuleCount, onNavigate }: { config: Config; roles: Role[]; activeModuleCount: number; onNavigate: (view: ViewName) => void }) { return <><section className="cards"><Metric value="Connected" label="Runtime configuration" /><Metric value={activeModuleCount} label="Active modules" /><Metric value={roles.length} label="Discord roles" /><Metric value={config.language.toUpperCase()} label="Server language" /></section><section className="panel split"><div><p className="eyebrow">QUICK ACTIONS</p><h2>Keep the server moving</h2><p className="subtitle">Jump straight to the areas that need attention.</p></div><div className="quick-actions"><button onClick={() => onNavigate('Roles')}>Configure roles</button><button onClick={() => onNavigate('Moderation')}>Moderation settings</button><button onClick={() => onNavigate('Automations')}>Manage automations</button></div></section><section className="panel"><h2>Welcome message</h2><p className="quote">{config.messages.welcome}</p><p className="subtitle">Edit routing and modules from Modules.</p></section></>; }
+function Metric({ value, label }: { value: string | number; label: string }) { return <div className="metric"><strong>{value}</strong><span>{label}</span></div>; }
+function ModulePanel({ config, onChange }: { config: Config; onChange: (modules: Record<string, boolean>) => void }) { return <section className="panel"><p className="eyebrow">RUNTIME</p><h2>Modules</h2><div className="module-grid">{Object.entries(config.modules).map(([name, enabled]) => <label className="module" key={name}><span>{name}</span><input type="checkbox" checked={enabled} onChange={event => onChange({ ...config.modules, [name]: event.target.checked })} /></label>)}</div></section>; }
+function ChannelPanel({ config, onChange, only }: { config: Config; onChange: (channels: Record<string, string | undefined>) => void; only?: string[] }) { const fields = [['logs', 'Log channel ID'], ['welcome', 'Welcome channel ID'], ['tickets', 'Ticket category ID'], ['exchange', 'Exchange channel ID']].filter(([key]) => !only || only.includes(key)); return <section className="panel"><p className="eyebrow">ROUTING</p><h2>Discord channels</h2><div className="form-grid">{fields.map(([key, label]) => <label className="field-label" key={key}>{label}<input value={config.channels[key] ?? ''} onChange={event => onChange({ ...config.channels, [key]: event.target.value || undefined })} /></label>)}</div></section>; }
+function RolesPanel({ roles, onSave }: { roles: Role[]; onSave: (role: Role) => void }) { const [selected, setSelected] = useState(roles[0]?.id ?? null); const role = roles.find(item => item.id === selected); if (!roles.length) return <section className="empty-state"><h2>No Discord roles loaded</h2><p>Set BOT_TOKEN on the API and use a guild ID the bot can access.</p></section>; return <section className="roles-layout"><div className="role-list">{roles.map(item => <button className={item.id === selected ? 'role-row selected' : 'role-row'} key={item.id} onClick={() => setSelected(item.id)}><i style={{ background: item.color }} /><span>{item.name}</span><small>{item.managed ? 'Managed' : `${item.permissions.length} rules`}</small></button>)}</div>{role && <RoleEditor key={role.id} role={role} onSave={onSave} />}</section>; }
+function RoleEditor({ role, onSave }: { role: Role; onSave: (role: Role) => void }) { const [draft, setDraft] = useState(role); return <section className="panel role-editor"><div className="role-heading"><div><p className="eyebrow">ROLE / POSITION {role.position}</p><h2>{role.name}</h2></div><button className="primary" onClick={() => onSave(draft)}>Save role</button></div><div className="form-grid"><label className="field-label">Role name<input disabled={role.managed} value={draft.name} onChange={event => setDraft({ ...draft, name: event.target.value })} /></label><label className="field-label">Color<input disabled={role.managed} type="color" value={draft.color} onChange={event => setDraft({ ...draft, color: event.target.value })} /></label></div><h3>Bot permissions</h3><div className="permission-grid">{(Object.keys(permissionLabels) as PermissionAction[]).map(action => <label className="permission" key={action}><input type="checkbox" checked={draft.permissions.includes(action)} onChange={event => setDraft({ ...draft, permissions: event.target.checked ? [...draft.permissions, action] : draft.permissions.filter(item => item !== action) })} /><span>{permissionLabels[action]}</span></label>)}</div></section>; }
+function ModerationPanel({ config, onChange }: { config: Config; onChange: (modules: Record<string, boolean>) => void }) { return <><section className="panel"><p className="eyebrow">PROTECTION</p><h2>Moderation controls</h2><div className="module-grid">{['moderation', 'automod', 'logs'].map(name => <label className="module" key={name}><span>{name}</span><input type="checkbox" checked={config.modules[name] !== false} onChange={event => onChange({ ...config.modules, [name]: event.target.checked })} /></label>)}</div></section><EmptyPanel title="Permission note" text="Use Roles to decide which Discord roles can ban, kick, timeout, or configure AutoMod. Discord hierarchy still applies." /></>; }
+function RecordsPanel({ feature, records, name, onName, onAdd, onDelete }: { feature: FeatureName; records: FeatureRecord[]; name: string; onName: (name: string) => void; onAdd: () => void; onDelete: (id: string) => void }) { return <section className="panel"><p className="eyebrow">{feature.toUpperCase()}</p><h2>{feature.replace(/[A-Z]/g, letter => ` ${letter}`).trim()}</h2><div className="form-grid"><label className="field-label">New record name<input value={name} onChange={event => onName(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') onAdd(); }} /></label><div className="field-action"><button className="primary" onClick={onAdd}>Create record</button></div></div><div className="record-list">{records.map(record => <div className="record" key={record.id}><span>{String(record.name ?? record.title ?? record.question ?? record.id)}</span><button onClick={() => onDelete(record.id)}>Delete</button></div>)}{!records.length && <p className="subtitle">No records yet.</p>}</div></section>; }
+function AnalyticsPanel({ config, roles }: { config: Config; roles: Role[] }) { return <><section className="cards"><Metric value={Object.keys(config.modules).length} label="Configured modules" /><Metric value={roles.length} label="Roles discovered" /><Metric value={Object.values(config.modules).filter(Boolean).length} label="Enabled now" /></section><EmptyPanel title="Operational signals" text="Live member, message, ticket, and exchange metrics will appear here as the bot publishes analytics events." /></>; }
+function EmptyPanel({ title, text }: { title: string; text: string }) { return <section className="panel empty-state"><h2>{title}</h2><p>{text}</p></section>; }
+function SaveButton({ onSave }: { onSave: () => void }) { return <div className="save-row"><button className="primary" onClick={onSave}>Save configuration</button></div>; }
