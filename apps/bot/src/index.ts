@@ -34,8 +34,8 @@ client.once('ready', () => {
 
 client.on('interactionCreate', async (interaction) => {
   try {
-    if (interaction.isButton()) return handleButton(interaction);
-    if (interaction.isModalSubmit()) return handleModal(interaction);
+    if (interaction.isButton()) { await handleButton(interaction); return; }
+    if (interaction.isModalSubmit()) { await handleModal(interaction); return; }
     if (!interaction.isChatInputCommand() || !interaction.guild) return;
     const guild = await guildData(interaction.guild.id);
     if (interaction.commandName === 'ping') await interaction.reply({ content: `Pong! ${client.ws.ping}ms`, ephemeral: true });
@@ -72,16 +72,21 @@ const rest = new REST({ version: '10' }).setToken(token);
 async function registerGuildCommands() {
   const guildId = process.env.GUILD_ID;
   if (!guildId) {
-    await rest.put(Routes.applicationCommands(process.env.CLIENT_ID ?? ''), { body: commands });
-    console.log('Global commands registered. Discord may take up to one hour to publish them.');
+    try {
+      await rest.put(Routes.applicationCommands(process.env.CLIENT_ID ?? ''), { body: commands });
+      console.log('Global commands registered. Discord may take up to one hour to publish them.');
+    } catch (error) {
+      console.warn('Global command registration failed. Check CLIENT_ID and BOT_TOKEN.', error);
+    }
     return;
   }
 
-  await rest.put(Routes.applicationGuildCommands(process.env.CLIENT_ID ?? '', guildId), {
-    body: commands
-  });
-
-  console.log('Guild commands registered.');
+  try {
+    await rest.put(Routes.applicationGuildCommands(process.env.CLIENT_ID ?? '', guildId), { body: commands });
+    console.log('Guild commands registered.');
+  } catch (error) {
+    console.warn('Guild command registration failed. Check that the bot is invited to GUILD_ID with applications.commands scope.', error);
+  }
 }
 
 client.on('guildCreate', async (guild) => {
