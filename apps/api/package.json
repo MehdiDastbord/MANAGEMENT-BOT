@@ -1,0 +1,23 @@
+{
+  "name": "@management-bot/api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@fastify/cors": "^10.0.1",
+    "@management-bot/database": "*",
+    "fastify": "^5.0.0",
+    "dotenv": "^16.4.5",
+    "@management-bot/shared": "*"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.2",
+    "@types/node": "^22.10.2"
+  }
+}

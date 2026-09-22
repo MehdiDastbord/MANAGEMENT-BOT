@@ -1,0 +1,2305 @@
+TEHRAN CLUB BOT
+
+MASTER DEVELOPMENT SPECIFICATION — COMPLETE ALL-IN-ONE DISCORD PLATFORM
+
+You are the lead software architect and senior Discord.js/TypeScript developer responsible for building TEHRAN CLUB BOT.
+
+This is NOT a simple Discord bot.
+
+Build a complete, production-grade, scalable Discord Management Platform consisting of:
+
+* Discord Bot
+* Backend API
+* Web Dashboard
+* PostgreSQL Database
+* Redis / Queue System
+* Permission Engine
+* Configuration Engine
+* Automation Engine
+* Localization System
+* Logging & Audit System
+* Analytics
+* Security Layer
+* Modular Feature Architecture
+
+The system must be designed so that almost everything can be configured from the dashboard without changing source code or redeploying the bot.
+
+⸻
+
+1. CORE TECHNOLOGY
+
+Preferred stack:
+
+* Node.js
+* TypeScript
+* discord.js
+* Next.js
+* React
+* Tailwind CSS
+* Fastify or NestJS
+* PostgreSQL
+* Prisma or Drizzle ORM
+* Redis
+* Discord OAuth2
+* REST API
+* WebSocket for live dashboard updates where useful
+* Docker
+* ESLint
+* Prettier
+* Vitest/Jest
+* GitHub-ready project structure
+
+Use strict TypeScript.
+
+Do not use unnecessary dependencies.
+
+The architecture must be modular and maintainable.
+
+⸻
+
+2. PROJECT ARCHITECTURE
+
+Use a clean modular structure similar to:
+
+/apps
+/bot
+/api
+/dashboard
+
+/packages
+/database
+/config
+/permissions
+/i18n
+/logger
+/automation
+/templates
+/types
+/utils
+/ui
+
+Every major feature must be an independent module.
+
+Examples:
+
+/modules
+moderation
+automod
+tickets
+exchange
+rank
+invites
+welcome
+giveaways
+drops
+economy
+games
+roles
+channels
+logs
+verification
+reputation
+achievements
+polls
+forms
+announcements
+scheduled-messages
+voice
+webhooks
+integrations
+ai
+etc.
+
+Do not create one giant file.
+
+⸻
+
+3. MULTI-SERVER ARCHITECTURE
+
+The bot must support multiple Discord servers.
+
+Every guild must have completely independent:
+
+* Settings
+* Language
+* Roles
+* Permissions
+* Channels
+* Templates
+* Automations
+* Tickets
+* Exchange settings
+* Economy
+* XP
+* Invites
+* Games
+* Giveaways
+* Drops
+* Logs
+* Moderation settings
+* AutoMod settings
+
+Never hard-code a specific server ID.
+
+Never hard-code role IDs.
+
+Never hard-code channel IDs.
+
+Never hard-code message IDs.
+
+Never hard-code server-specific behavior.
+
+⸻
+
+4. CONFIGURATION ENGINE
+
+Create a universal configuration system.
+
+Hierarchy:
+
+Global Defaults
+→ Guild Configuration
+→ Module Configuration
+→ Feature Configuration
+→ Role/User Overrides
+
+Everything possible should be configurable.
+
+The dashboard must allow administrators to:
+
+* Enable/disable modules
+* Configure modules
+* Change channels
+* Change roles
+* Change permissions
+* Change messages
+* Change embeds
+* Change buttons
+* Change colors
+* Change cooldowns
+* Change limits
+* Change behavior
+* Change automation
+* Change language
+* Change logging
+* Change staff access
+
+Configuration changes should take effect without redeploying the bot.
+
+⸻
+
+5. DASHBOARD
+
+Create a professional responsive web dashboard.
+
+Authentication:
+
+* Discord OAuth2
+* Secure session handling
+* Guild selection
+* Permission validation
+
+Dashboard sections:
+
+1. Overview
+2. Server Settings
+3. Moderation
+4. AutoMod
+5. Tickets
+6. Exchange
+7. Rank / XP
+8. Invites
+9. Welcome
+10. Leave
+11. Giveaways
+12. Drops
+13. Economy
+14. Games
+15. Roles
+16. Channels
+17. Logs
+18. Automations
+19. Messages
+20. Embeds
+21. Buttons
+22. Permissions
+23. Localization
+24. Analytics
+25. Verification
+26. Reputation
+27. Achievements
+28. Polls
+29. Forms
+30. Announcements
+31. Scheduled Messages
+32. Webhooks
+33. Voice
+34. Staff Management
+35. Moderation Cases
+36. Appeals
+37. Evidence
+38. Transcripts
+39. Integrations
+40. API
+41. Security
+42. Backups
+43. Import/Export
+44. System
+45. Developer Settings
+
+Dashboard must be mobile-friendly.
+
+Persian dashboard must support RTL.
+
+English dashboard must support LTR.
+
+⸻
+
+6. UNIVERSAL MESSAGE BUILDER
+
+Create a reusable message/Embed Builder.
+
+Allow configuration of:
+
+* Plain text
+* Embed
+* Title
+* Description
+* Color
+* Author
+* Author icon
+* Thumbnail
+* Image
+* Footer
+* Footer icon
+* Timestamp
+* Fields
+* Inline fields
+* Buttons
+* Select menus
+* User mentions
+* Role mentions
+* Channel mentions
+
+Live preview required.
+
+Allow saving reusable templates.
+
+Templates can be used by:
+
+* Welcome
+* Leave
+* Tickets
+* Exchange
+* Giveaways
+* Drops
+* Moderation
+* Logs
+* Rank Up
+* Invites
+* Announcements
+* Automations
+* Games
+* Forms
+* Polls
+* Any future module
+
+⸻
+
+7. VARIABLES SYSTEM
+
+Support variables such as:
+
+{{user}}
+{{user_id}}
+{{username}}
+{{display_name}}
+{{avatar}}
+{{guild}}
+{{guild_id}}
+{{guild_name}}
+{{channel}}
+{{channel_id}}
+{{role}}
+{{role_id}}
+{{request_id}}
+{{ticket_id}}
+{{case_id}}
+{{reason}}
+{{link}}
+{{banner}}
+{{staff}}
+{{status}}
+{{level}}
+{{xp}}
+{{invites}}
+{{winner}}
+{{prize}}
+{{timestamp}}
+{{date}}
+{{time}}
+{{member_count}}
+{{online_count}}
+
+Every module can define its own variables.
+
+Dashboard must show available variables while editing templates.
+
+⸻
+
+8. MENTION SYSTEM
+
+Create a safe mention engine.
+
+Allow configuration of:
+
+* Role mentions
+* User mentions
+* @everyone
+* @here
+* Silent/no ping
+
+Use Discord allowed_mentions properly.
+
+Prevent accidental mass mentions.
+
+Allow per-template mention configuration.
+
+⸻
+
+9. PERMISSION SYSTEM
+
+Create a granular permission engine.
+
+Permissions must work for:
+
+* Owner
+* Administrator
+* Role
+* User
+* Module
+* Command
+* Button
+* Modal
+* Select menu
+* Channel
+* Action
+
+Example:
+
+@Exchange role can:
+
+* View Exchange Review
+* Create exchange request
+* Accept exchange
+* Reject exchange
+* Publish exchange
+
+But cannot:
+
+* Ban
+* Kick
+* Manage roles
+* Manage channels
+* Manage server
+* Manage tickets
+
+Permissions must be checked on the backend.
+
+Never trust the dashboard UI alone.
+
+⸻
+
+10. AUTOMATION ENGINE
+
+Create a visual:
+
+WHEN → IF → THEN
+
+automation builder.
+
+Triggers:
+
+* Member joins
+* Member leaves
+* Message sent
+* Message deleted
+* Message edited
+* Role added
+* Role removed
+* Channel created
+* Channel deleted
+* Ticket created
+* Ticket closed
+* Exchange submitted
+* Exchange accepted
+* Exchange rejected
+* Giveaway started
+* Giveaway ended
+* Drop started
+* Rank up
+* Invite created
+* Invite milestone
+* Warning created
+* Moderation action
+* Scheduled time
+* Webhook received
+* Custom event
+
+Conditions:
+
+* User has role
+* User does not have role
+* Channel
+* Account age
+* Member age
+* XP
+* Level
+* Invite count
+* Economy balance
+* Ticket type
+* Exchange status
+* Time/date
+* Message contains
+* Regex
+* Custom condition
+
+Actions:
+
+* Send message
+* Send embed
+* Mention user
+* Mention role
+* DM user
+* Add role
+* Remove role
+* Create channel
+* Delete channel
+* Lock channel
+* Unlock channel
+* Create ticket
+* Close ticket
+* Create giveaway
+* Give XP
+* Remove XP
+* Give currency
+* Remove currency
+* Log event
+* Timeout
+* Warn
+* Kick
+* Ban
+* Trigger another automation
+
+⸻
+
+11. TICKET SYSTEM
+
+Ticket types:
+
+* Support
+* Purchase
+* Exchange
+* Partnership
+* Report
+* Technical Support
+* Custom
+
+Configurable:
+
+* Ticket category
+* Staff roles
+* Ticket channel name
+* Opening message
+* Embed
+* Buttons
+* Modal
+* Claim system
+* Unclaim
+* Close
+* Reopen
+* Delete
+* Lock
+* Unlock
+* Add member
+* Remove member
+* Rename
+* Transcript
+* Rating
+* Auto close
+* Staff assignment
+* Logs
+* Permissions
+
+Ticket search and ticket history required.
+
+⸻
+
+12. EXCHANGE SYSTEM
+
+Create a complete Exchange system.
+
+User runs:
+
+/exchange
+
+A configurable form opens.
+
+Fields can include:
+
+* Title
+* Description
+* Banner
+* Link
+* Extra information
+* Custom fields
+
+After submission:
+
+1. Validate input.
+2. Generate unique Request ID.
+3. Save request in database.
+4. Send request to configured Exchange Review channel.
+5. Mention configured staff role/users.
+6. Use configured message/embed.
+7. Add Accept button.
+8. Add Reject button.
+
+Example configuration must support:
+
+<@705944134564708390>
+
+📥 Exchange Request
+
+User: <@1220095426863304746>
+
+بنر تست
+
+test.gg/discord
+
+[Accept] [Reject]
+
+The above is only an example.
+
+Everything must be configurable.
+
+Accept:
+
+* Change status to approved
+* Save staff member
+* Save timestamp
+* Log action
+* Publish to configured exchange channel
+* Send configured final message
+* Notify user
+* Optionally assign role
+* Update review message
+* Trigger automation
+
+Reject:
+
+* Open rejection modal
+* Ask for reason
+* Save reason
+* Save staff member
+* Notify user
+* Log action
+* Update review message
+* Trigger automation
+
+Support:
+
+* Pending
+* Approved
+* Rejected
+* Expired
+* Cancelled
+* Reopened
+
+Search exchange history.
+
+Staff history.
+
+User history.
+
+Export data.
+
+⸻
+
+13. MODERATION
+
+Commands/features:
+
+/ban
+/unban
+/kick
+/timeout
+/untimeout
+/warn
+/unwarn
+/warnings
+/clear
+/lock
+/unlock
+/slowmode
+
+Configurable:
+
+* Warning levels
+* Automatic punishments
+* Duration
+* Reasons
+* Staff permissions
+* Logs
+* DM notification
+* Appeal system
+
+Everything must be logged.
+
+⸻
+
+14. AUTOMOD
+
+Anti:
+
+* Spam
+* Flood
+* Duplicate messages
+* Links
+* Discord invites
+* Mention spam
+* Caps spam
+* Bad words
+* Raid
+* Mass join
+* Suspicious accounts
+* Account age
+* Repeated messages
+
+Actions:
+
+* Delete
+* Warn
+* Timeout
+* Kick
+* Ban
+
+Whitelist:
+
+* Users
+* Roles
+* Channels
+* Domains
+
+⸻
+
+15. COMPLETE LOG SYSTEM
+
+Log everything reasonably observable through Discord and the bot.
+
+Member:
+
+* Join
+* Leave
+* Ban
+* Unban
+* Kick
+* Timeout
+* Warn
+* Nickname change
+* Role add/remove
+
+Roles:
+
+* Created
+* Deleted
+* Renamed
+* Color changed
+* Permissions changed
+* Position changed
+* Hoist changed
+* Mentionable changed
+
+Channels:
+
+* Created
+* Deleted
+* Renamed
+* Moved
+* Permission changes
+* Slowmode changes
+* Lock/unlock
+
+Messages:
+
+* Deleted
+* Edited
+* Bulk deleted
+
+Other:
+
+* Invites
+* Webhooks where observable
+* Server updates
+* Tickets
+* Exchange
+* Giveaways
+* Drops
+* Rank
+* Economy
+* Games
+* Dashboard actions
+* Configuration changes
+* Permission changes
+* Automation changes
+* Security events
+* Errors
+
+Where Discord does not directly provide sufficient event data, use the Discord Audit Log when available.
+
+Do not invent unavailable information.
+
+⸻
+
+16. ROLE MANAGER
+
+Dashboard role management:
+
+* Create
+* Delete
+* Rename
+* Color
+* Hoist
+* Mentionable
+* Permissions
+* Position
+* Assign
+* Remove
+
+Role templates.
+
+Role logging.
+
+Role permission management.
+
+Role-based module access.
+
+⸻
+
+17. CHANNEL MANAGER
+
+Dashboard:
+
+* Create
+* Delete
+* Rename
+* Move
+* Lock
+* Unlock
+* Slowmode
+* Permissions
+* Category management
+
+Channel templates.
+
+Channel logging.
+
+⸻
+
+18. RANK / XP SYSTEM
+
+XP sources:
+
+* Messages
+* Voice
+* Invites
+* Events
+* Games
+* Custom automations
+
+Configurable:
+
+* XP amount
+* Cooldown
+* Anti-spam
+* Formula
+* Level requirements
+* Role rewards
+* Rank announcements
+
+Commands:
+
+/rank
+/level
+/leaderboard
+
+Dashboard analytics.
+
+⸻
+
+19. INVITE SYSTEM
+
+Track:
+
+* Inviter
+* Normal invites
+* Fake joins
+* Leaves
+* Rejoins
+* Net invites
+
+Commands:
+
+/invites
+/invite-leaderboard
+
+Features:
+
+* Invite rewards
+* Milestones
+* Logs
+* Leaderboard
+* Anti-fake invite logic
+
+⸻
+
+20. WELCOME SYSTEM
+
+Configurable:
+
+* Welcome channel
+* Message
+* Embed
+* Image
+* Banner
+* Auto role
+* DM
+* Buttons
+* Rules
+* Member counter
+* Language
+
+⸻
+
+21. LEAVE SYSTEM
+
+Configurable:
+
+* Channel
+* Message
+* Embed
+* Image
+* Variables
+* Logs
+* Member statistics
+
+⸻
+
+22. GIVEAWAYS
+
+Features:
+
+* Prize
+* Duration
+* Winners
+* Required role
+* Required level
+* Required invites
+* Blacklist
+* Entry button
+* Join
+* Leave
+* End
+* Reroll
+* Winner history
+* Logs
+* Winner DM
+
+Schedule giveaways.
+
+Automatic giveaways.
+
+⸻
+
+23. DROP SYSTEM
+
+Support:
+
+* Timed drops
+* Instant drops
+* Random drops
+* Claim buttons
+* Winner selection
+* Cooldowns
+* Anti-spam
+* Logs
+* Custom messages
+
+⸻
+
+24. ECONOMY
+
+Features:
+
+* Balance
+* Daily
+* Work
+* Pay
+* Shop
+* Inventory
+* Transactions
+* Rewards
+
+Integrate economy with:
+
+* XP
+* Games
+* Giveaways
+* Drops
+* Invites
+* Achievements
+
+Maintain a complete transaction history.
+
+⸻
+
+25. GAMES
+
+Implement:
+
+* Guess the Number
+* Rock Paper Scissors
+* Tic Tac Toe
+* Connect Four
+* Trivia
+* Math Challenge
+* Word Scramble
+* Hangman
+* Coin Flip
+* Blackjack
+
+Use Discord buttons/select menus/modals where appropriate.
+
+Features:
+
+* Score
+* XP rewards
+* Economy rewards
+* Leaderboards
+* Cooldowns
+* Anti-spam
+* Persian
+* English
+
+⸻
+
+26. REPUTATION SYSTEM
+
+Support:
+
+* Give reputation
+* Remove reputation
+* Reputation history
+* Cooldowns
+* Role rewards
+* Leaderboards
+* Logs
+
+⸻
+
+27. ACHIEVEMENT SYSTEM
+
+Achievements based on:
+
+* Messages
+* XP
+* Invites
+* Games
+* Economy
+* Tickets
+* Exchange
+* Server activity
+
+Support:
+
+* Hidden achievements
+* Public achievements
+* Rewards
+* Badges
+* Notifications
+
+⸻
+
+28. BADGE SYSTEM
+
+Custom server badges.
+
+Examples:
+
+* Early Member
+* Booster
+* Staff
+* Event Winner
+* Top Inviter
+* Top XP
+* Exchange Staff
+
+Fully configurable.
+
+⸻
+
+29. POLL SYSTEM
+
+Create polls with:
+
+* Question
+* Options
+* Duration
+* Multiple choice
+* Anonymous mode
+* Results
+* Automatic closing
+* Logs
+
+⸻
+
+30. FORM BUILDER
+
+Create configurable forms.
+
+Field types:
+
+* Short text
+* Long text
+* Number
+* Choice
+* Multiple choice
+* User
+* Role
+* Channel
+* URL
+
+Forms can trigger automations.
+
+⸻
+
+31. ANNOUNCEMENT SYSTEM
+
+Support:
+
+* Immediate announcements
+* Scheduled announcements
+* Repeat announcements
+* Embed announcements
+* Role mentions
+* User mentions
+* Buttons
+* Images
+* Templates
+
+⸻
+
+32. SCHEDULED MESSAGE SYSTEM
+
+Schedule:
+
+* Messages
+* Embeds
+* Announcements
+* Giveaways
+* Drops
+* Automations
+
+Support:
+
+* One-time
+* Daily
+* Weekly
+* Monthly
+* Custom cron-like schedules
+
+⸻
+
+33. WEBHOOK MANAGER
+
+Manage configured webhooks where Discord permissions/API allow.
+
+Features:
+
+* Create
+* Edit
+* Delete
+* Send
+* Templates
+* Webhook logs
+* External webhook integration
+
+⸻
+
+34. VERIFICATION SYSTEM
+
+Support configurable verification:
+
+* Button verification
+* Role verification
+* CAPTCHA/external verification if integrated
+* Account age checks
+* Verification channel
+* Verified role
+* Unverified role
+* Logs
+* Anti-raid protections
+
+⸻
+
+35. STAFF MANAGEMENT
+
+Dashboard staff section.
+
+Track:
+
+* Staff roles
+* Staff permissions
+* Staff actions
+* Moderation cases
+* Tickets handled
+* Exchanges handled
+* Giveaways handled
+* Reports handled
+* Staff notes
+* Staff history
+
+Do not expose private/internal notes to unauthorized users.
+
+⸻
+
+36. MODERATION CASE SYSTEM
+
+Each moderation action should optionally create a Case ID.
+
+Example:
+
+Case #1042
+
+User:
+Moderator:
+Action:
+Reason:
+Duration:
+Evidence:
+Timestamp:
+Status:
+
+Support case search/history.
+
+⸻
+
+37. APPEALS
+
+Users can submit moderation appeals.
+
+Configurable:
+
+* Appeal form
+* Appeal channel
+* Staff roles
+* Status
+* Accept
+* Reject
+* Reason
+* Logs
+* DM notification
+
+⸻
+
+38. EVIDENCE SYSTEM
+
+Allow authorized staff to attach/reference:
+
+* Images
+* Files
+* Links
+* Messages
+* Screenshots
+
+Connect evidence to:
+
+* Warnings
+* Bans
+* Reports
+* Tickets
+* Appeals
+* Cases
+
+⸻
+
+39. TRANSCRIPT SYSTEM
+
+Ticket transcripts.
+
+Configurable:
+
+* Format
+* Channel
+* Storage
+* Access permissions
+* Retention
+* Logs
+
+⸻
+
+40. REACTION / BUTTON ROLES
+
+Support:
+
+* Reaction roles
+* Button roles
+* Select-menu roles
+
+Configurable from dashboard.
+
+⸻
+
+41. THREAD MANAGEMENT
+
+Support:
+
+* Automatic threads
+* Thread creation
+* Thread locking
+* Thread archiving
+* Thread cleanup
+* Permissions
+* Logs
+
+⸻
+
+42. STARBOARD
+
+Configurable:
+
+* Reaction threshold
+* Channel
+* Embed
+* Ignore channels
+* Ignore roles
+* Message format
+
+⸻
+
+43. STICKY MESSAGES
+
+Support:
+
+* Sticky messages
+* Auto repost
+* Configurable delay
+* Multiple channels
+* Templates
+
+⸻
+
+44. TEMPORARY VOICE CHANNELS
+
+Features:
+
+* Join-to-create
+* Temporary channel
+* Rename
+* User limit
+* Lock
+* Unlock
+* Hide
+* Transfer ownership
+* Delete when empty
+
+⸻
+
+45. VOICE MANAGEMENT
+
+Track and manage:
+
+* Voice joins
+* Leaves
+* Moves
+* Duration
+* Voice XP
+* Voice statistics
+
+⸻
+
+46. SERVER SEARCH
+
+Dashboard search:
+
+* Members
+* Tickets
+* Exchanges
+* Cases
+* Logs
+* Messages where available
+* Giveaways
+* Transactions
+* Automations
+
+⸻
+
+47. ANALYTICS
+
+Dashboard charts:
+
+* Members
+* Joins
+* Leaves
+* Messages
+* Tickets
+* Exchanges
+* Approved exchanges
+* Rejected exchanges
+* Invites
+* XP
+* Giveaways
+* Drops
+* Games
+* Economy
+* Moderation actions
+
+Time periods:
+
+* Today
+* 7 days
+* 30 days
+* 90 days
+* Custom
+
+⸻
+
+48. NOTIFICATION SYSTEM
+
+Notifications for:
+
+* Ticket
+* Exchange
+* Moderation
+* Giveaway
+* Drop
+* Rank up
+* Staff actions
+* Security events
+* Dashboard events
+
+Allow per-user/per-role notification preferences.
+
+⸻
+
+49. INTEGRATIONS
+
+Architecture must support external integrations through:
+
+* REST APIs
+* Webhooks
+* OAuth
+* API keys
+* Custom integrations
+
+Do not tightly couple the core system to one provider.
+
+⸻
+
+50. AI ASSISTANT — OPTIONAL MODULE
+
+Create an optional AI module.
+
+Possible features:
+
+* Server assistant
+* FAQ answering
+* Ticket assistance
+* Moderation assistance
+* Staff assistant
+* Knowledge-base search
+* Automatic summaries
+
+AI must never bypass Discord permissions.
+
+AI actions must be explicitly authorized.
+
+⸻
+
+51. KNOWLEDGE BASE
+
+Dashboard knowledge base:
+
+* Articles
+* Categories
+* Search
+* Tags
+* FAQ
+* Internal staff articles
+* Public articles
+
+AI can optionally use the knowledge base.
+
+⸻
+
+52. API
+
+Create secure REST API.
+
+Features:
+
+* Authentication
+* Authorization
+* API keys
+* Rate limits
+* Guild isolation
+* Audit logs
+* API documentation
+
+Future developers must be able to integrate with the platform.
+
+⸻
+
+53. SECURITY
+
+Implement:
+
+* Secure OAuth2
+* Secure sessions
+* State validation
+* CSRF protection where applicable
+* Input validation
+* SQL injection protection
+* XSS protection
+* Rate limiting
+* API authentication
+* Permission checks
+* Secret management
+* Environment variables
+* Secure cookies
+* Audit logs
+* Abuse prevention
+* Interaction ownership
+* Expiring buttons where appropriate
+
+Never expose:
+
+* Bot token
+* Database password
+* API secrets
+* OAuth secrets
+* AI API keys
+
+⸻
+
+54. DISCORD SECURITY
+
+Respect:
+
+* Discord permission hierarchy
+* Role hierarchy
+* Bot permissions
+* Rate limits
+* Gateway intents
+* Interaction expiration
+* Embed/component limits
+* API limitations
+
+Never claim that the bot can access information Discord does not expose.
+
+Implement retries/backoff where appropriate.
+
+⸻
+
+55. DATABASE
+
+Create proper relational models for at least:
+
+* Guild
+* GuildSettings
+* GuildModule
+* GuildLanguage
+* GuildPermission
+* RoleConfiguration
+* ChannelConfiguration
+* User
+* GuildMember
+* Ticket
+* TicketMessage
+* TicketRating
+* ExchangeRequest
+* ExchangeAction
+* Invite
+* InviteStat
+* Warning
+* ModerationAction
+* ModerationCase
+* Giveaway
+* GiveawayEntry
+* Drop
+* Rank
+* XPTransaction
+* EconomyAccount
+* EconomyTransaction
+* GameSession
+* GameScore
+* LogConfiguration
+* LogEvent
+* MessageTemplate
+* EmbedTemplate
+* ButtonTemplate
+* Automation
+* AutomationTrigger
+* AutomationCondition
+* AutomationAction
+* DashboardUser
+* DashboardSession
+* AuditEntry
+* Achievement
+* Badge
+* Reputation
+* Poll
+* Form
+* FormSubmission
+* ScheduledMessage
+* WebhookConfiguration
+* StaffNote
+* Appeal
+* Evidence
+* Transcript
+
+Use indexes and database constraints properly.
+
+⸻
+
+56. BACKUPS
+
+Support:
+
+* Database backup
+* Configuration backup
+* Export
+* Import
+* Restore
+
+Allow administrators to export server configuration.
+
+Do not expose secrets in exports.
+
+⸻
+
+57. CONFIGURATION IMPORT/EXPORT
+
+Allow:
+
+Export server configuration.
+
+Import configuration.
+
+Optional JSON-based configuration format.
+
+Validate imported configuration before applying it.
+
+Show preview/diff before destructive changes.
+
+⸻
+
+58. SANDBOX / TEST MODE
+
+Create optional test mode.
+
+Allow administrators/developers to test:
+
+* Templates
+* Embeds
+* Buttons
+* Automations
+* Permissions
+* Tickets
+* Exchange flows
+
+Without affecting production data where possible.
+
+⸻
+
+59. LIVE DASHBOARD
+
+Where useful, dashboard should update live through WebSocket/events.
+
+Examples:
+
+* New ticket
+* New exchange
+* New moderation case
+* Giveaway update
+* Member count
+* Logs
+* Bot status
+
+⸻
+
+60. ERROR HANDLING
+
+Implement centralized error handling.
+
+Never crash the whole bot because of one module.
+
+Errors should:
+
+* Be logged
+* Have unique error IDs
+* Show safe user-facing messages
+* Avoid leaking secrets
+* Be traceable by developers
+
+⸻
+
+61. HEALTH / MONITORING
+
+Create health checks for:
+
+* Bot
+* API
+* Database
+* Redis
+* Queue
+* Dashboard
+
+Monitor:
+
+* CPU
+* Memory
+* Database connection
+* API latency
+* Discord gateway
+* Error rate
+* Queue failures
+
+⸻
+
+62. QUEUE SYSTEM
+
+Use Redis/queue architecture for tasks such as:
+
+* Scheduled messages
+* Giveaway timers
+* Drop timers
+* XP processing
+* Logs
+* Notifications
+* Heavy background jobs
+* Analytics aggregation
+
+Do not block the Discord event loop with heavy operations.
+
+⸻
+
+63. CACHING
+
+Cache frequently accessed data such as:
+
+* Guild settings
+* Permissions
+* Templates
+* Roles
+* Channels
+
+Invalidate cache when configuration changes.
+
+⸻
+
+64. LOCALIZATION
+
+Full Persian + English support.
+
+Persian:
+
+* RTL dashboard
+* Persian UI
+* Persian messages
+* Persian buttons
+* Persian embeds
+* Persian errors
+* Persian commands/options where Discord supports localization
+
+English:
+
+* LTR dashboard
+* English UI
+* English messages
+* English buttons
+* English embeds
+* English errors
+
+Do NOT hard-code user-facing text.
+
+Use a real i18n system.
+
+Guild language configurable.
+
+Optional per-user language.
+
+Architecture must support future languages.
+
+⸻
+
+65. COMMAND SYSTEM
+
+Commands should be organized and not become an unusable list.
+
+Examples:
+
+/setup
+/config
+/ticket
+/exchange
+/rank
+/invites
+/giveaway
+/drop
+/moderation
+/settings
+
+Also support:
+
+* Buttons
+* Select menus
+* Modals
+* User context commands
+* Message context commands
+
+Dashboard is the primary configuration interface.
+
+Commands are the operational interface.
+
+⸻
+
+66. LOG CUSTOMIZATION
+
+For every log type allow configuration of:
+
+* Enable/disable
+* Channel
+* Message
+* Embed
+* Color
+* Fields
+* Mentions
+* Timestamp
+* Staff visibility
+* Retention
+* Variables
+
+⸻
+
+67. CUSTOM SERVER BRANDING
+
+Dashboard should optionally allow:
+
+* Server logo
+* Dashboard logo
+* Dashboard name
+* Brand colors
+* Dark/light theme
+* Custom accent color
+* Custom footer
+* Custom favicon
+
+⸻
+
+68. MOBILE DASHBOARD
+
+Dashboard must work properly on:
+
+* iPhone
+* Android
+* Tablet
+* Desktop
+
+Navigation must be responsive.
+
+Persian RTL must work correctly on mobile.
+
+⸻
+
+69. PERFORMANCE
+
+The system must be designed for growth.
+
+Avoid:
+
+* Memory leaks
+* Blocking operations
+* Unnecessary API requests
+* Unnecessary database queries
+* Duplicate event listeners
+* Unbounded caches
+
+Use:
+
+* Pagination
+* Caching
+* Queues
+* Database indexes
+* Lazy loading
+* Rate limits
+
+⸻
+
+70. TESTING
+
+Write tests for critical systems:
+
+* Permissions
+* Configuration
+* Localization
+* Exchange
+* Tickets
+* Moderation
+* Automations
+* Economy
+* XP
+* Invites
+* Giveaways
+* Security
+
+Test both success and failure cases.
+
+⸻
+
+71. DOCUMENTATION
+
+Provide documentation for:
+
+* Installation
+* Environment variables
+* Database setup
+* Discord application setup
+* OAuth2 setup
+* Bot permissions
+* Deployment
+* Dashboard
+* Configuration
+* Modules
+* API
+* Developer architecture
+* Troubleshooting
+
+⸻
+
+72. ENVIRONMENT VARIABLES
+
+Use .env.
+
+Never commit secrets.
+
+Example:
+
+DISCORD_TOKEN=
+DISCORD_CLIENT_ID=
+DATABASE_URL=
+REDIS_URL=
+DISCORD_CLIENT_SECRET=
+SESSION_SECRET=
+API_URL=
+DASHBOARD_URL=
+AI_API_KEY=
+
+Validate environment variables during startup.
+
+⸻
+
+73. DEPLOYMENT
+
+The project should be deployable using Docker.
+
+Provide:
+
+* Dockerfile
+* docker-compose
+* Production environment configuration
+* Database migration commands
+* Seed commands
+* Health checks
+
+Make deployment straightforward.
+
+⸻
+
+74. ADMIN SETUP WIZARD
+
+When bot is first added to a server:
+
+Show a setup wizard.
+
+Configure:
+
+* Language
+* Log channel
+* Staff roles
+* Moderator role
+* Exchange role
+* Ticket category
+* Ticket staff
+* Welcome channel
+* Welcome message
+* Main modules
+* Permissions
+
+Allow skipping and configuring later.
+
+⸻
+
+75. SERVER TEMPLATES
+
+Allow admins to save configurations as templates.
+
+Example:
+
+“Tehran Club Default”
+
+Template can contain:
+
+* Channels
+* Roles
+* Permissions
+* Messages
+* Logs
+* Tickets
+* Exchange
+* Welcome
+* Automations
+
+Allow applying templates to another guild only when permissions allow.
+
+⸻
+
+76. COMPLETE AUDIT TRAIL
+
+Every important dashboard/configuration action must create an audit entry.
+
+Example:
+
+Admin:
+Action:
+Module:
+Old value:
+New value:
+Timestamp:
+IP/session information where legally/technically appropriate:
+Result:
+
+Never log secrets.
+
+⸻
+
+77. DATA PRIVACY
+
+Only store information necessary for functionality.
+
+Provide configurable retention.
+
+Allow administrators to delete/export supported user data where appropriate.
+
+Do not store payment card information.
+
+Do not expose private staff information.
+
+⸻
+
+78. IMPORTANT DEVELOPMENT RULE
+
+DO NOT simply create a prototype with fake buttons and fake functionality.
+
+Every dashboard control should connect to real backend logic.
+
+Every button should perform the configured action.
+
+Every command should use the same underlying business logic as the dashboard.
+
+Do not duplicate business logic between:
+
+Discord commands
+Dashboard
+Buttons
+Modals
+Automations
+API
+
+Use shared services.
+
+⸻
+
+79. NO HARDCODED CONFIGURATION
+
+Do NOT write things like:
+
+const EXCHANGE_ROLE = “123456”;
+
+Instead:
+
+Load configuration from database.
+
+Example:
+
+guild.config.exchange.reviewRoleId
+
+Same principle for:
+
+* Channels
+* Roles
+* Messages
+* Colors
+* Permissions
+* Templates
+* Timers
+* Features
+
+⸻
+
+80. CONFIGURATION-FIRST DESIGN
+
+The owner should be able to change almost everything from the dashboard.
+
+For example:
+
+If the Exchange Review role changes tomorrow:
+
+Owner changes it in Dashboard.
+
+No source-code modification.
+
+No redeployment.
+
+No database editing manually.
+
+⸻
+
+81. FAILURE HANDLING
+
+If a configured role/channel/template no longer exists:
+
+* Detect it
+* Log it
+* Show warning in dashboard
+* Do not crash
+* Allow administrator to repair configuration
+
+⸻
+
+82. INTERACTION SECURITY
+
+Buttons/select menus/modals must validate:
+
+* Guild
+* User
+* Permission
+* Interaction ownership where needed
+* Request/session state
+* Expiration
+
+A malicious user must not be able to click another user’s private action and perform it.
+
+⸻
+
+83. RATE LIMITING
+
+Implement rate limits for:
+
+* Commands
+* Buttons
+* Modals
+* Forms
+* API
+* Dashboard
+* Economy
+* Games
+* Tickets
+* Exchange
+* Automations
+
+⸻
+
+84. MODULAR FEATURE TOGGLES
+
+Every major module must have:
+
+Enabled:
+Disabled:
+
+When disabled:
+
+* Commands unavailable
+* Dashboard section disabled
+* Automations cannot trigger it
+* Permissions hidden/disabled
+* Background jobs stopped where applicable
+
+⸻
+
+85. FINAL QUALITY REQUIREMENT
+
+The final product must feel like a serious Discord management platform, not a collection of random commands.
+
+It must have:
+
+* Clean architecture
+* Professional dashboard
+* Reliable database
+* Granular permissions
+* Full logging
+* Localization
+* Automation
+* Security
+* Scalability
+* Error handling
+* Testing
+* Documentation
+* Mobile support
+* Multi-server support
+
+The system should be extensible so new modules can be added later without rewriting the core.
+
+⸻
+
+86. DEVELOPMENT PROCESS
+
+Do NOT attempt to randomly code everything at once.
+
+Build in controlled phases:
+
+PHASE 1
+Core architecture
+Database
+Bot
+API
+Dashboard
+Authentication
+Guild system
+Configuration engine
+Permission engine
+Logging
+
+PHASE 2
+Moderation
+AutoMod
+Roles
+Channels
+Welcome
+Leave
+
+PHASE 3
+Tickets
+Exchange
+Forms
+Appeals
+Evidence
+Transcripts
+
+PHASE 4
+XP
+Rank
+Invites
+Economy
+Achievements
+Reputation
+Badges
+
+PHASE 5
+Giveaways
+Drops
+Games
+Polls
+Events
+
+PHASE 6
+Automation engine
+Scheduled systems
+Webhooks
+Notifications
+
+PHASE 7
+Analytics
+Monitoring
+Backups
+Import/export
+Security hardening
+
+PHASE 8
+Advanced integrations
+AI
+Knowledge base
+Developer API
+Plugin architecture
+
+After every phase:
+
+* Run tests
+* Fix errors
+* Verify database migrations
+* Verify permissions
+* Verify dashboard
+* Verify Discord interactions
+* Verify logs
+* Verify localization
+
+⸻
+
+87. DEFINITION OF DONE
+
+A feature is NOT complete simply because its UI exists.
+
+A feature is complete only when:
+
+1. Database model exists if required.
+2. Backend service exists.
+3. Permission checks exist.
+4. Discord interaction exists where required.
+5. Dashboard controls exist.
+6. Configuration is persistent.
+7. Logs exist.
+8. Localization exists.
+9. Error handling exists.
+10. Tests exist for critical logic.
+11. Documentation exists.
+12. It works after restarting the bot.
+13. It works after restarting the API.
+14. It works with multiple guilds.
+15. It does not rely on hard-coded server IDs.
+
+⸻
+
+88. FINAL INSTRUCTION TO THE DEVELOPMENT AGENT
+
+Treat this document as the master specification and project contract.
+
+Before implementing a feature:
+
+* Understand its database requirements.
+* Understand its permission requirements.
+* Understand its Discord API limitations.
+* Understand its dashboard requirements.
+* Understand its localization requirements.
+* Understand its logging requirements.
+* Understand its security requirements.
+* Understand its automation requirements.
+
+If a feature can reasonably be made configurable, make it configurable.
+
+If a feature requires a Discord permission, validate it.
+
+If Discord does not expose something, do not fake it.
+
+If a feature is too large, split it into modules/services.
+
+Do not remove requested features simply because they are inconvenient to implement.
+
+Do not replace real functionality with placeholders.
+
+Do not hard-code server-specific behavior.
+
+Do not expose secrets.
+
+Do not make the dashboard merely decorative.
+
+The objective is to build TEHRAN CLUB BOT as a complete, modular, configurable Discord management platform that can continue growing for years without requiring a rewrite of the core architecture.

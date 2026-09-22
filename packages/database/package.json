@@ -1,0 +1,11 @@
+{
+  "name": "@management-bot/database",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": { "build": "tsc -p tsconfig.json" },
+  "dependencies": { "@supabase/supabase-js": "^2.47.10" },
+  "devDependencies": { "typescript": "^5.6.2", "@types/node": "^22.10.2" }
+}

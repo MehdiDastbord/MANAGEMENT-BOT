@@ -1,0 +1,14 @@
+{
+  "name": "management-bot",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace @management-bot/shared && npm run build --workspace @management-bot/database && npm run build --workspace @management-bot/bot && npm run build --workspace @management-bot/api && npm run build --workspace @management-bot/dashboard",
+    "dev:bot": "npm run dev --workspace @management-bot/bot",
+    "dev:api": "npm run dev --workspace @management-bot/api",
+    "dev:dashboard": "npm run dev --workspace @management-bot/dashboard"
+  }
+}
