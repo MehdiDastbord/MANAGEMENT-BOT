@@ -2,6 +2,12 @@ export type PermissionAction =
   | 'moderation.ban'
   | 'moderation.kick'
   | 'moderation.timeout'
+  | 'moderation.warn'
+  | 'moderation.manage'
+  | 'channels.manage'
+  | 'roles.manage'
+  | 'logs.view'
+  | 'automod.manage'
   | 'tickets.manage'
   | 'exchange.review'
   | 'exchange.approve'
@@ -13,6 +19,12 @@ export const defaultPermissions: Record<string, PermissionAction[]> = {
     'moderation.ban',
     'moderation.kick',
     'moderation.timeout',
+    'moderation.warn',
+    'moderation.manage',
+    'channels.manage',
+    'roles.manage',
+    'logs.view',
+    'automod.manage',
     'tickets.manage',
     'exchange.review',
     'exchange.approve',
@@ -23,12 +35,18 @@ export const defaultPermissions: Record<string, PermissionAction[]> = {
     'moderation.ban',
     'moderation.kick',
     'moderation.timeout',
+    'moderation.warn',
+    'moderation.manage',
+    'channels.manage',
+    'roles.manage',
+    'logs.view',
+    'automod.manage',
     'tickets.manage',
     'exchange.review',
     'exchange.approve',
     'dashboard.access'
   ],
-  moderator: ['moderation.kick', 'moderation.timeout', 'tickets.manage', 'exchange.review'],
+  moderator: ['moderation.kick', 'moderation.timeout', 'moderation.warn', 'moderation.manage', 'tickets.manage', 'exchange.review'],
   support: ['tickets.manage', 'exchange.review'],
   member: []
 };

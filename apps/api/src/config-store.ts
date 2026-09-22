@@ -8,6 +8,8 @@ export interface ApiGuildConfig {
   modules: Record<string, boolean>;
   channels: { logs?: string; welcome?: string; tickets?: string; exchange?: string };
   messages: { welcome: string };
+  leave?: { channelId?: string; message?: string };
+  automod?: { enabled: boolean; inviteLinks: boolean; mentionSpam: boolean; capsSpam: boolean; badWords: string[]; action: 'delete' | 'timeout' | 'warn'; timeoutSeconds: number };
   updatedAt: string;
 }
 
@@ -37,6 +39,9 @@ export async function updateConfig(guildId: string, patch: Partial<ApiGuildConfi
   if (patch.modules) config.modules = { ...config.modules, ...patch.modules };
   if (patch.channels) config.channels = { ...config.channels, ...patch.channels };
   if (patch.messages) config.messages = { ...config.messages, ...patch.messages };
+  const incoming = patch as Partial<ApiGuildConfig>;
+  if (incoming.leave) config.leave = { ...config.leave, ...incoming.leave };
+  if (incoming.automod) config.automod = { ...config.automod, ...incoming.automod };
   const shared = config as ApiGuildConfig & { config?: { language: 'en' | 'fa'; welcomeMessage: string; logChannelId?: string; welcomeChannelId?: string; ticketCategoryId?: string; exchangeChannelId?: string; modules?: Record<string, boolean> } };
   shared.config = { ...shared.config, language: config.language, welcomeMessage: config.messages.welcome, logChannelId: config.channels.logs, welcomeChannelId: config.channels.welcome, ticketCategoryId: config.channels.tickets, exchangeChannelId: config.channels.exchange, modules: config.modules };
   config.updatedAt = new Date().toISOString();

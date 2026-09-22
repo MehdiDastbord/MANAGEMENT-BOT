@@ -19,6 +19,39 @@ export const commands = [
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
   new SlashCommandBuilder()
+    .setName("ban").setDescription("Ban a member")
+    .addUserOption((o) => o.setName("user").setDescription("Member").setRequired(true))
+    .addStringOption((o) => o.setName("reason").setDescription("Reason"))
+    .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers),
+  new SlashCommandBuilder()
+    .setName("unban").setDescription("Unban a user")
+    .addStringOption((o) => o.setName("user_id").setDescription("User ID").setRequired(true))
+    .addStringOption((o) => o.setName("reason").setDescription("Reason"))
+    .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers),
+  new SlashCommandBuilder()
+    .setName("kick").setDescription("Kick a member")
+    .addUserOption((o) => o.setName("user").setDescription("Member").setRequired(true))
+    .addStringOption((o) => o.setName("reason").setDescription("Reason"))
+    .setDefaultMemberPermissions(PermissionFlagsBits.KickMembers),
+  new SlashCommandBuilder()
+    .setName("untimeout").setDescription("Remove a member timeout")
+    .addUserOption((o) => o.setName("user").setDescription("Member").setRequired(true))
+    .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
+  new SlashCommandBuilder()
+    .setName("unwarn").setDescription("Remove a warning")
+    .addIntegerOption((o) => o.setName("case").setDescription("Warning number").setMinValue(1).setRequired(true))
+    .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
+  new SlashCommandBuilder()
+    .setName("lock").setDescription("Lock the current channel")
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
+  new SlashCommandBuilder()
+    .setName("unlock").setDescription("Unlock the current channel")
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
+  new SlashCommandBuilder()
+    .setName("slowmode").setDescription("Set channel slowmode")
+    .addIntegerOption((o) => o.setName("seconds").setDescription("0-21600 seconds").setMinValue(0).setMaxValue(21600).setRequired(true))
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
+  new SlashCommandBuilder()
     .setName("warnings")
     .setDescription("View member warnings")
     .addUserOption((o) =>

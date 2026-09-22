@@ -83,6 +83,9 @@ export interface GuildData {
     exchangeChannelId?: string;
     staffRoleId?: string;
     modules?: Record<string, boolean>;
+    leaveChannelId?: string;
+    leaveMessage?: string;
+    automod?: AutoModConfig;
   };
   audit: Array<{
     action: string;
@@ -91,6 +94,19 @@ export interface GuildData {
     metadata?: unknown;
     createdAt: string;
   }>;
+}
+export interface AutoModConfig {
+  enabled: boolean;
+  inviteLinks: boolean;
+  mentionSpam: boolean;
+  duplicateMessages: boolean;
+  capsSpam: boolean;
+  badWords: string[];
+  ignoredChannels: string[];
+  ignoredRoles: string[];
+  ignoredUsers: string[];
+  action: 'delete' | 'timeout' | 'warn';
+  timeoutSeconds: number;
 }
 
 const dataDir = process.env.DATA_DIR ?? join(process.cwd(), "data");
@@ -111,6 +127,7 @@ function freshGuild(): GuildData {
       language: "en",
       welcomeMessage: "Welcome {{user}} to {{guild}}!",
       modules: {},
+      automod: { enabled: true, inviteLinks: true, mentionSpam: true, duplicateMessages: true, capsSpam: true, badWords: [], ignoredChannels: [], ignoredRoles: [], ignoredUsers: [], action: 'timeout', timeoutSeconds: 60 },
     },
     audit: [],
   };

@@ -18,6 +18,7 @@ import {
 import { commands } from "./commands.js";
 import { addAudit, guildData, save, statsFor } from "./store.js";
 import { render } from "./render.js";
+import { hasPermission, type PermissionAction } from "./permissions.js";
 
 const token = process.env.BOT_TOKEN;
 
@@ -76,6 +77,14 @@ client.on("interactionCreate", async (interaction) => {
         ephemeral: true,
       });
     else if (interaction.commandName === "warn") await warn(interaction, guild);
+    else if (interaction.commandName === "ban") await ban(interaction, guild);
+    else if (interaction.commandName === "unban") await unban(interaction, guild);
+    else if (interaction.commandName === "kick") await kick(interaction, guild);
+    else if (interaction.commandName === "untimeout") await untimeout(interaction, guild);
+    else if (interaction.commandName === "unwarn") await unwarn(interaction, guild);
+    else if (interaction.commandName === "lock") await lockChannel(interaction, guild, true);
+    else if (interaction.commandName === "unlock") await lockChannel(interaction, guild, false);
+    else if (interaction.commandName === "slowmode") await slowmode(interaction, guild);
     else if (interaction.commandName === "warnings")
       await showWarnings(interaction, guild);
     else if (interaction.commandName === "clear")
@@ -186,6 +195,11 @@ client.on("guildMemberAdd", (member) => {
 client.on("guildMemberRemove", (member) => {
   void (async () => {
     const guild = await guildData(member.guild.id);
+    const channel = guild.config.leaveChannelId
+      ? member.guild.channels.cache.get(guild.config.leaveChannelId)
+      : undefined;
+    if (channel?.isTextBased() && guild.config.modules?.welcome !== false)
+      await channel.send(render(guild.config.leaveMessage ?? "Goodbye {{user}}.", { user: member.user.username, guild: member.guild.name }));
     addAudit(guild, "member.leave", undefined, member.id);
     await save();
   })();
@@ -195,24 +209,25 @@ client.on("messageCreate", (message) => {
   if (!message.guild || message.author.bot) return;
   void (async () => {
     const guild = await guildData(message.guild!.id);
-    const automodEnabled = guild.config.modules?.automod !== false;
+    const automod = guild.config.automod;
+    const automodEnabled = guild.config.modules?.automod !== false && automod?.enabled !== false;
+    const ignored = automod?.ignoredUsers.includes(message.author.id) || automod?.ignoredChannels.includes(message.channelId) || (message.member?.roles.cache.some(role => automod?.ignoredRoles.includes(role.id)) ?? false);
     const inviteLink = /discord(?:\.gg|\.com\/invite)\/\S+/i.test(
       message.content,
     );
     const excessiveMentions =
       message.mentions.users.size + message.mentions.roles.size > 5;
+    const capsSpam = message.content.length >= 12 && message.content === message.content.toUpperCase() && message.content !== message.content.toLowerCase();
+    const badWord = automod?.badWords.some(word => message.content.toLowerCase().includes(word.toLowerCase())) ?? false;
     if (
-      automodEnabled &&
-      (inviteLink || excessiveMentions) &&
+      automodEnabled && !ignored &&
+      ((automod?.inviteLinks !== false && inviteLink) || (automod?.mentionSpam !== false && excessiveMentions) || (automod?.capsSpam && capsSpam) || badWord) &&
       message.member?.moderatable
     ) {
       await message.delete().catch(() => undefined);
-      await message.member
-        .timeout(60_000, "AutoMod: invite link or excessive mentions")
-        .catch(() => undefined);
+      if (automod?.action !== 'delete') await message.member.timeout((automod?.timeoutSeconds ?? 60) * 1000, "AutoMod policy violation").catch(() => undefined);
       addAudit(guild, "automod.action", client.user?.id, message.author.id, {
-        inviteLink,
-        excessiveMentions,
+        inviteLink, excessiveMentions, capsSpam, badWord, action: automod?.action ?? 'timeout'
       });
       await save();
       return;
@@ -235,6 +250,7 @@ async function warn(
   interaction: import("discord.js").ChatInputCommandInteraction,
   guild: Awaited<ReturnType<typeof guildData>>,
 ) {
+  if (!canUse(interaction, "moderation.warn")) return interaction.reply({ content: "You do not have permission to warn members.", ephemeral: true });
   const user = interaction.options.getUser("user", true);
   const reason = interaction.options.getString("reason", true);
   const id = guild.warnings.length + 1;
@@ -246,6 +262,81 @@ async function warn(
     createdAt: new Date().toISOString(),
   });
   await interaction.reply(`Warning #${id} issued to ${user} for: ${reason}`);
+}
+function canUse(interaction: import("discord.js").ChatInputCommandInteraction, action: PermissionAction): boolean {
+  if (!interaction.member || typeof interaction.member.permissions === "string") return false;
+  if (interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return true;
+  const permissions = interaction.member.permissions;
+  if (action.startsWith("moderation.") && permissions.has(PermissionFlagsBits.ModerateMembers)) return true;
+  if (action === "channels.manage" && permissions.has(PermissionFlagsBits.ManageChannels)) return true;
+  if (action === "moderation.ban" && permissions.has(PermissionFlagsBits.BanMembers)) return true;
+  if (action === "moderation.kick" && permissions.has(PermissionFlagsBits.KickMembers)) return true;
+  if ("roles" in interaction.member && !Array.isArray(interaction.member.roles)) {
+    return hasPermission(interaction.member.roles.cache.map(role => role.name.toLowerCase()), action, {
+      moderator: ["moderation.warn", "moderation.manage", "moderation.kick", "moderation.timeout"],
+      administrator: ["moderation.warn", "moderation.manage", "moderation.ban", "moderation.kick", "moderation.timeout", "channels.manage"],
+    });
+  }
+  return false;
+}
+async function ban(interaction: import("discord.js").ChatInputCommandInteraction, guild: Awaited<ReturnType<typeof guildData>>) {
+  if (!canUse(interaction, "moderation.ban")) return interaction.reply({ content: "You do not have permission to ban members.", ephemeral: true });
+  const user = interaction.options.getUser("user", true);
+  const reason = interaction.options.getString("reason") ?? "No reason provided";
+  await interaction.guild!.members.ban(user, { reason });
+  addAudit(guild, "moderation.ban", interaction.user.id, user.id, { reason });
+  await interaction.reply(`${user.tag} was banned.`);
+}
+async function unban(interaction: import("discord.js").ChatInputCommandInteraction, guild: Awaited<ReturnType<typeof guildData>>) {
+  if (!canUse(interaction, "moderation.ban")) return interaction.reply({ content: "You do not have permission to unban members.", ephemeral: true });
+  const userId = interaction.options.getString("user_id", true);
+  const reason = interaction.options.getString("reason") ?? "No reason provided";
+  await interaction.guild!.members.unban(userId, reason);
+  addAudit(guild, "moderation.unban", interaction.user.id, userId, { reason });
+  await interaction.reply(`User ${userId} was unbanned.`);
+}
+async function kick(interaction: import("discord.js").ChatInputCommandInteraction, guild: Awaited<ReturnType<typeof guildData>>) {
+  if (!canUse(interaction, "moderation.kick")) return interaction.reply({ content: "You do not have permission to kick members.", ephemeral: true });
+  const user = interaction.options.getUser("user", true);
+  const member = await interaction.guild!.members.fetch(user.id);
+  if (!member.kickable) return interaction.reply({ content: "I cannot kick that member because of role hierarchy.", ephemeral: true });
+  const reason = interaction.options.getString("reason") ?? "No reason provided";
+  await member.kick(reason);
+  addAudit(guild, "moderation.kick", interaction.user.id, user.id, { reason });
+  await interaction.reply(`${user.tag} was kicked.`);
+}
+async function untimeout(interaction: import("discord.js").ChatInputCommandInteraction, guild: Awaited<ReturnType<typeof guildData>>) {
+  if (!canUse(interaction, "moderation.timeout")) return interaction.reply({ content: "You do not have permission to remove timeouts.", ephemeral: true });
+  const user = interaction.options.getUser("user", true);
+  const member = await interaction.guild!.members.fetch(user.id);
+  if (!member.moderatable) return interaction.reply({ content: "I cannot modify that member because of role hierarchy.", ephemeral: true });
+  await member.timeout(null, "Timeout removed");
+  addAudit(guild, "moderation.untimeout", interaction.user.id, user.id);
+  await interaction.reply(`Timeout removed for ${user.tag}.`);
+}
+async function unwarn(interaction: import("discord.js").ChatInputCommandInteraction, guild: Awaited<ReturnType<typeof guildData>>) {
+  if (!canUse(interaction, "moderation.warn")) return interaction.reply({ content: "You do not have permission to remove warnings.", ephemeral: true });
+  const id = interaction.options.getInteger("case", true);
+  const index = guild.warnings.findIndex(warning => warning.id === id);
+  if (index < 0) return interaction.reply({ content: "Warning not found.", ephemeral: true });
+  const [warning] = guild.warnings.splice(index, 1);
+  addAudit(guild, "moderation.unwarn", interaction.user.id, warning.userId, { warningId: id });
+  await interaction.reply(`Warning #${id} removed.`);
+}
+async function lockChannel(interaction: import("discord.js").ChatInputCommandInteraction, guild: Awaited<ReturnType<typeof guildData>>, locked: boolean) {
+  if (!canUse(interaction, "channels.manage")) return interaction.reply({ content: "You do not have permission to manage channels.", ephemeral: true });
+  if (!interaction.channel || !interaction.guild || !("permissionOverwrites" in interaction.channel)) return interaction.reply({ content: "This command requires a guild channel.", ephemeral: true });
+  await interaction.channel.permissionOverwrites.edit(interaction.guild.roles.everyone, { SendMessages: locked ? false : null });
+  addAudit(guild, locked ? "channel.lock" : "channel.unlock", interaction.user.id, interaction.channelId);
+  await interaction.reply({ content: locked ? "Channel locked." : "Channel unlocked.", ephemeral: true });
+}
+async function slowmode(interaction: import("discord.js").ChatInputCommandInteraction, guild: Awaited<ReturnType<typeof guildData>>) {
+  if (!canUse(interaction, "channels.manage")) return interaction.reply({ content: "You do not have permission to manage channels.", ephemeral: true });
+  if (!interaction.channel || !interaction.channel.isTextBased() || !("setRateLimitPerUser" in interaction.channel)) return interaction.reply({ content: "This command requires a text channel.", ephemeral: true });
+  const seconds = interaction.options.getInteger("seconds", true);
+  await interaction.channel.setRateLimitPerUser(seconds);
+  addAudit(guild, "channel.slowmode", interaction.user.id, interaction.channelId, { seconds });
+  await interaction.reply({ content: `Slowmode set to ${seconds} seconds.`, ephemeral: true });
 }
 async function showWarnings(
   interaction: import("discord.js").ChatInputCommandInteraction,
