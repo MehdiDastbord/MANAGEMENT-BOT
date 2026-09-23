@@ -88,6 +88,9 @@ export const commands = [
     .setName("ticket")
     .setDescription("Create a private support ticket"),
   new SlashCommandBuilder()
+    .setName("panel")
+    .setDescription("Open the server panel menu"),
+  new SlashCommandBuilder()
     .setName("exchange")
     .setDescription("Submit an exchange request")
     .addStringOption((o) =>

@@ -9,6 +9,14 @@ export interface Warning {
   reason: string;
   createdAt: string;
 }
+export interface TicketPanel {
+  id: string;
+  name: string;
+  emoji?: string;
+  description?: string;
+  kind: "support" | "exchange" | "staff" | "custom";
+  enabled?: boolean;
+}
 export interface Ticket {
   id: number;
   guildId: string;
@@ -100,6 +108,7 @@ export interface GuildData {
     ticketMentionRoleId?: string;
     ticketTranscriptChannelId?: string;
     ticketOwnerCanClose?: boolean;
+    ticketPanels?: TicketPanel[];
     staffRoleId?: string;
     modules?: Record<string, boolean>;
     leaveChannelId?: string;
@@ -153,7 +162,12 @@ function freshGuild(): GuildData {
       modules: {},
       automod: { enabled: true, inviteLinks: true, mentionSpam: true, duplicateMessages: true, capsSpam: true, badWords: [], ignoredChannels: [], ignoredRoles: [], ignoredUsers: [], action: 'timeout', timeoutSeconds: 60 },
       rolePermissions: {},
-        logChannels: {},
+      ticketPanels: [
+        { id: 'support', name: 'Support', emoji: '🎫', description: 'Create a support ticket', kind: 'support', enabled: true },
+        { id: 'exchange', name: 'Exchange', emoji: '🔄', description: 'Submit an exchange request', kind: 'exchange', enabled: true },
+        { id: 'staff', name: 'Staff Apply', emoji: '🛡️', description: 'Apply for staff', kind: 'staff', enabled: true }
+      ],
+      logChannels: {},
     },
     audit: [],
   };
@@ -203,6 +217,11 @@ export async function guildData(guildId: string): Promise<GuildData> {
 
 function normalizeGuildData(value: GuildData & { config?: GuildData["config"] & Record<string, unknown> }): GuildData {
   const raw = value.config ?? {};
+  const defaultPanels: TicketPanel[] = [
+    { id: "support", name: "Support", emoji: "🎫", description: "Create a support ticket", kind: "support", enabled: true },
+    { id: "exchange", name: "Exchange", emoji: "🔄", description: "Submit an exchange request", kind: "exchange", enabled: true },
+    { id: "staff", name: "Staff Apply", emoji: "🛡️", description: "Apply for staff", kind: "staff", enabled: true },
+  ];
   const config = {
     language: raw.language ?? "en",
     welcomeMessage: raw.welcomeMessage ?? "Welcome {{user}} to {{guild}}!",
@@ -226,7 +245,8 @@ function normalizeGuildData(value: GuildData & { config?: GuildData["config"] & 
     ticketStaffRoleId: raw.ticketStaffRoleId,
     ticketMentionRoleId: raw.ticketMentionRoleId,
     ticketTranscriptChannelId: raw.ticketTranscriptChannelId,
-    ticketOwnerCanClose: raw.ticketOwnerCanClose
+    ticketOwnerCanClose: raw.ticketOwnerCanClose,
+    ticketPanels: Array.isArray(raw.ticketPanels) && raw.ticketPanels.length ? (raw.ticketPanels as TicketPanel[]) : defaultPanels,
   };
   return {
     ...freshGuild(),

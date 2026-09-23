@@ -12,6 +12,8 @@ import {
   PermissionFlagsBits,
   REST,
   Routes,
+  StringSelectMenuBuilder,
+  StringSelectMenuOptionBuilder,
   TextInputBuilder,
   TextInputStyle,
 } from "discord.js";
@@ -70,6 +72,10 @@ client.on("interactionCreate", async (interaction) => {
       await handleButton(interaction);
       return;
     }
+    if (interaction.isStringSelectMenu()) {
+      await handleSelectMenu(interaction);
+      return;
+    }
     if (interaction.isModalSubmit()) {
       await handleModal(interaction);
       return;
@@ -109,6 +115,8 @@ client.on("interactionCreate", async (interaction) => {
       await timeout(interaction, guild);
     else if (interaction.commandName === "ticket")
       await createTicket(interaction, guild);
+    else if (interaction.commandName === "panel")
+      await openPanelMenu(interaction, guild);
     else if (interaction.commandName === "exchange")
       await createExchange(interaction, guild);
     else if (interaction.commandName === "rank")
@@ -881,6 +889,68 @@ async function createDrop(
 }
 async function setup(interaction: import("discord.js").ChatInputCommandInteraction, guild: Awaited<ReturnType<typeof guildData>>) {
   await interaction.reply({ content: `Setup status\nLanguage: ${guild.config.language}\nWelcome channel: ${guild.config.welcomeChannelId ?? "not configured"}\nLog channel: ${guild.config.logChannelId ?? "not configured"}\nTicket category: ${guild.config.ticketCategoryId ?? "not configured"}\nExchange channel: ${guild.config.exchangeChannelId ?? "not configured"}`, ephemeral: true });
+}
+
+async function openPanelMenu(
+  interaction: import("discord.js").ChatInputCommandInteraction,
+  guild: Awaited<ReturnType<typeof guildData>>, 
+) {
+  const options = (guild.config.ticketPanels ?? []).filter((panel) => panel.enabled !== false);
+  const menuOptions = options.length
+    ? options.map((panel) => {
+        const option = new StringSelectMenuOptionBuilder()
+          .setLabel(panel.name)
+          .setValue(panel.id)
+          .setDescription(panel.description ?? "Ticket panel");
+
+        if (panel.emoji) option.setEmoji(panel.emoji);
+        return option;
+      })
+    : [
+        new StringSelectMenuOptionBuilder()
+          .setLabel("Support")
+          .setValue("support")
+          .setDescription("Create a support ticket")
+          .setEmoji("🎫"),
+      ];
+
+  const menu = new StringSelectMenuBuilder()
+    .setCustomId("panel:select")
+    .setPlaceholder("Choose a panel")
+    .addOptions(menuOptions);
+
+  await interaction.reply({
+    content: "Choose a panel below.",
+    components: [new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(menu)],
+    ephemeral: true,
+  });
+}
+
+async function handleSelectMenu(
+  interaction: import("discord.js").StringSelectMenuInteraction,
+) {
+  if (!interaction.guild) return;
+  const guild = await guildData(interaction.guild.id);
+  const panel = (guild.config.ticketPanels ?? []).find((item) => item.id === interaction.values[0]) ?? {
+    id: "support",
+    name: "Support",
+    emoji: "🎫",
+    description: "Create a support ticket",
+    kind: "support",
+    enabled: true,
+  };
+
+  if (panel.kind === "support") {
+    await interaction.update({ content: `Support panel: **${panel.name}**\n${panel.description ?? "Support ticket selected."}`, components: [] });
+    return;
+  }
+
+  if (panel.kind === "exchange") {
+    await interaction.update({ content: `Exchange panel: **${panel.name}**\n${panel.description ?? "Exchange request selected."}`, components: [] });
+    return;
+  }
+
+  await interaction.update({ content: `Panel selected: **${panel.name}**\n${panel.description ?? "Staff panel selected."}`, components: [] });
 }
 
 async function handleButton(

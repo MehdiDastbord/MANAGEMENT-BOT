@@ -2,6 +2,15 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { loadGuildRecord, saveGuildRecord } from '@management-bot/database';
 
+export interface TicketPanel {
+  id: string;
+  name: string;
+  emoji?: string;
+  description?: string;
+  kind: 'support' | 'exchange' | 'staff' | 'custom';
+  enabled?: boolean;
+}
+
 export interface ApiGuildConfig {
   guildId: string;
   language: 'en' | 'fa';
@@ -14,6 +23,7 @@ export interface ApiGuildConfig {
   rolePermissions?: Record<string, string[]>;
   ticketSettings?: { nameTemplate?: string; staffRoleId?: string; mentionRoleId?: string; transcriptChannelId?: string; ownerCanClose?: boolean };
   exchangeSettings?: { reviewChannelId?: string; publishChannelId?: string; reviewRoleId?: string };
+  ticketPanels?: TicketPanel[];
   updatedAt: string;
 }
 
@@ -29,7 +39,11 @@ async function all(): Promise<Record<string, ApiGuildConfig>> {
 
 export async function configFor(guildId: string): Promise<ApiGuildConfig> {
   const configs = await all();
-  configs[guildId] ??= { guildId, language: 'en', modules: { moderation: true, tickets: true, exchange: true, xp: true, invites: true, welcome: true, giveaways: true, economy: true, automod: true, logs: true }, channels: {}, messages: { welcome: 'Welcome {{user}} to {{guild}}!' }, updatedAt: new Date().toISOString(), warnings: [], tickets: [], exchanges: [], giveaways: [], stats: {}, audit: [], config: { language: 'en', welcomeMessage: 'Welcome {{user}} to {{guild}}!' } } as ApiGuildConfig;
+  configs[guildId] ??= { guildId, language: 'en', modules: { moderation: true, tickets: true, exchange: true, xp: true, invites: true, welcome: true, giveaways: true, economy: true, automod: true, logs: true }, channels: {}, messages: { welcome: 'Welcome {{user}} to {{guild}}!' }, ticketPanels: [
+    { id: 'support', name: 'Support', emoji: '🎫', description: 'Create a support ticket', kind: 'support', enabled: true },
+    { id: 'exchange', name: 'Exchange', emoji: '🔄', description: 'Submit an exchange request', kind: 'exchange', enabled: true },
+    { id: 'staff', name: 'Staff Apply', emoji: '🛡️', description: 'Apply for staff', kind: 'staff', enabled: true }
+  ], updatedAt: new Date().toISOString(), warnings: [], tickets: [], exchanges: [], giveaways: [], stats: {}, audit: [], config: { language: 'en', welcomeMessage: 'Welcome {{user}} to {{guild}}!' } } as ApiGuildConfig;
   if (process.env.SUPABASE_URL && (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY)) {
     const remote = await loadGuildRecord(guildId);
     if (remote) configs[guildId] = { ...configs[guildId], ...remote } as ApiGuildConfig;
@@ -50,6 +64,7 @@ export async function updateConfig(guildId: string, patch: Partial<ApiGuildConfi
   if (incoming.rolePermissions) config.rolePermissions = { ...config.rolePermissions, ...incoming.rolePermissions };
   if (incoming.ticketSettings) config.ticketSettings = { ...config.ticketSettings, ...incoming.ticketSettings };
   if (incoming.exchangeSettings) config.exchangeSettings = { ...config.exchangeSettings, ...incoming.exchangeSettings };
+  if (incoming.ticketPanels) config.ticketPanels = incoming.ticketPanels;
   const shared = config as ApiGuildConfig & { config?: Record<string, unknown> };
   shared.config = { ...shared.config, language: config.language, welcomeMessage: config.messages.welcome, logChannelId: config.channels.logs, welcomeChannelId: config.channels.welcome, ticketCategoryId: config.channels.tickets, exchangeChannelId: config.channels.exchange, modules: config.modules, leaveChannelId: config.leave?.channelId, leaveMessage: config.leave?.message, automod: config.automod, rolePermissions: config.rolePermissions, logChannels: config.logChannels, levelChannelId: config.channels.level, inviteChannelId: config.channels.invites, ticketNameTemplate: config.ticketSettings?.nameTemplate, ticketStaffRoleId: config.ticketSettings?.staffRoleId, ticketMentionRoleId: config.ticketSettings?.mentionRoleId, ticketTranscriptChannelId: config.ticketSettings?.transcriptChannelId, ticketOwnerCanClose: config.ticketSettings?.ownerCanClose, exchangeReviewChannelId: config.exchangeSettings?.reviewChannelId, exchangePublishChannelId: config.exchangeSettings?.publishChannelId, exchangeReviewRoleId: config.exchangeSettings?.reviewRoleId };
   config.updatedAt = new Date().toISOString();
